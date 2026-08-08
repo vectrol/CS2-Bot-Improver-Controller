@@ -21,6 +21,7 @@ const MIN_CONFIG = {
   appearance: { accent: "#f2a33c", compact: false },
   spectate: {
     overlayEnabled: true,
+    autoDirector: true,
     x: 80,
     y: 80,
     width: 420,
@@ -118,13 +119,15 @@ app.whenReady().then(() => {
           const root = document.getElementById("root");
           return {
             isOverlay: !!document.querySelector(".overlay"),
-            hasPanel: !!document.querySelector(".overlay__panel"),
-            text: root ? root.textContent.slice(0, 80) : "",
+            hasPanel: !!document.querySelector(".hud-panel"),
+            hasChrome: !!document.querySelector(".overlay__chrome"),
+            hasDirector: !!document.querySelector(".hud-director"),
+            text: root ? root.textContent.slice(0, 100) : "",
           };
         })()
       `);
       console.log("OVERLAY-CHECK:", JSON.stringify(result));
-      pass2 = result.isOverlay && result.hasPanel;
+      pass2 = result.isOverlay && result.hasPanel && result.hasChrome && result.hasDirector;
       console.log(pass2 ? "OVERLAY SMOKE PASSED" : "OVERLAY SMOKE FAILED");
     } catch (e) {
       console.log("OVERLAY-CHECK EXCEPTION:", e.message);

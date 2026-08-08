@@ -70,17 +70,24 @@ app.whenReady().then(async () => {
 
   const csgo = "C:\\Users\\Me\\AppData\\Local\\Temp\\opencode\\gsi-csgo";
   fs.mkdirSync(csgo, { recursive: true });
-  spectate.writeSpectateFiles(csgo);
+  spectate.writeSpectateFiles(csgo, true);
   const gsiCfg = fs.readFileSync(path.join(csgo, "cfg", "gamestate_integration_cbic.cfg"), "utf-8");
   const specCfg = fs.readFileSync(path.join(csgo, "cfg", "cbic_spectate.cfg"), "utf-8");
   const fileChecks = [
     ["gsi cfg written with port 8123", gsiCfg.includes("8123") && gsiCfg.includes("allplayers")],
-    ["spectate cfg joins spec + auto director", specCfg.includes("jointeam 1") && specCfg.includes("spec_autodirector 1")],
+    ["spectate cfg joins spec + director ON", specCfg.includes("jointeam 1") && specCfg.includes("spec_autodirector 1")],
   ];
   for (const [name, pass] of fileChecks) {
     console.log(`${pass ? "PASS" : "FAIL"}  ${name}`);
     if (!pass) fails++;
   }
+
+  spectate.writeSpectateFiles(csgo, false);
+  const specCfgOff = fs.readFileSync(path.join(csgo, "cfg", "cbic_spectate.cfg"), "utf-8");
+  const offPass =
+    /^spec_autodirector 0$/m.test(specCfgOff) && !/^spec_autodirector 1$/m.test(specCfgOff);
+  console.log(`${offPass ? "PASS" : "FAIL"}  spectate cfg director OFF variant`);
+  if (!offPass) fails++;
 
   gsi.stopGsiServer();
   console.log(fails === 0 ? "ALL GSI TESTS PASSED" : `${fails} FAILED`);

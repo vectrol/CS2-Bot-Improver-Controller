@@ -183,6 +183,7 @@ export type GsiState = {
 
 export type SpectateConfig = {
   overlayEnabled: boolean;
+  autoDirector: boolean;
   x: number;
   y: number;
   width: number;

@@ -51,21 +51,17 @@ const GSI_CFG = `"cbic"
 }
 `;
 
-const SPECTATE_CFG = `// CBIC 导播观战模式 — 自动加入观战 + 自动导播
-jointeam 1
-spec_autodirector 1
-spec_autodirector_speed 1.05
-spec_autodirector_lookahead 2.2
-spec_smooth_mouse_scale 1.4
-spec_show_xray 1
-mp_warmuptime 3
-`;
-
-export function writeSpectateFiles(csgo: string): void {
+export function writeSpectateFiles(csgo: string, autoDirector = true): void {
   const cfgDir = join(csgo, "cfg");
   mkdirSync(cfgDir, { recursive: true });
   writeFileSync(join(cfgDir, "gamestate_integration_cbic.cfg"), GSI_CFG, "utf-8");
-  writeFileSync(join(cfgDir, "cbic_spectate.cfg"), SPECTATE_CFG, "utf-8");
+  const director = autoDirector
+    ? `// CBIC 导播观战 — 自动导播已启用（游戏内可用控制台 spec_autodirector 0/1 实时切换）\nspec_autodirector 1\nspec_autodirector_speed 1.05\nspec_autodirector_lookahead 2.2\nspec_smooth_mouse_scale 1.4\n`
+    : `// CBIC 导播观战 — 自动导播已关闭（游戏内可用控制台 spec_autodirector 1 开启）\nspec_autodirector 0\n`;
+  const cfg =
+    `// CBIC 导播观战模式 — 自动加入观战席\njointeam 1\nspec_show_xray 1\nmp_warmuptime 3\n` +
+    director;
+  writeFileSync(join(cfgDir, "cbic_spectate.cfg"), cfg, "utf-8");
 }
 
 /** Temporarily add the map+exec args to Steam launch options, launch, then restore. */
@@ -73,13 +69,14 @@ export async function launchSpectate(csgo: string, map: string): Promise<Spectat
   if (isCs2Running()) {
     return { launched: false, map, error: "cs2 already running" };
   }
-  writeSpectateFiles(csgo);
+  const autoDirector = getConfig().spectate?.autoDirector ?? true;
+  writeSpectateFiles(csgo, autoDirector);
   saveConfig({ spectate: { ...getConfig().spectate, lastMap: map } });
 
   const prev = await getLaunchOptions(true);
   const base = prev.options.split(/\s+/).filter(Boolean);
-  const extra = [`+map`, map, `+exec`, `cbic_spectate`];
-  const merged = [...new Set([...base, ...extra])];
+  // Spectating bot matches always needs -insecure (plugins + bot control).
+  const merged = [...new Set([...base, "-insecure", "+map", map, "+exec", "cbic_spectate"])];
   await setLaunchOptionsWith(merged);
 
   try {

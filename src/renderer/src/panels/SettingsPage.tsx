@@ -244,6 +244,16 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
                   onClick={() => store.overlayPatch({ overlayEnabled: !sp?.overlayEnabled })}
                 />
               </div>
+              <div className="setting-row">
+                <div className="setting-row__info">
+                  <div className="setting-row__title">{t("spectate.autoDirector")}</div>
+                  <div className="setting-row__desc">{t("spectate.autoDirectorDesc")}</div>
+                </div>
+                <button
+                  className={`toggle ${sp?.autoDirector ? "toggle--on" : ""}`}
+                  onClick={() => store.overlayPatch({ autoDirector: !sp?.autoDirector })}
+                />
+              </div>
               {sp?.overlayEnabled && (
                 <>
                   <div className="setting-row">

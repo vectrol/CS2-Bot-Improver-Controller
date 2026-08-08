@@ -21,6 +21,7 @@ const DEFAULTS: AppConfig = {
   appearance: { accent: "#f2a33c", compact: false },
   spectate: {
     overlayEnabled: false,
+    autoDirector: true,
     x: 80,
     y: 80,
     width: 420,

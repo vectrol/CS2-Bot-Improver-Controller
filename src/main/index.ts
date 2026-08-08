@@ -357,6 +357,7 @@ function applyOverlay(cfg: SpectateConfig): void {
     overlayWin.setBounds(bounds);
     overlayWin.setOpacity(cfg.opacity);
     overlayWin.setIgnoreMouseEvents(cfg.clickThrough, { forward: true });
+    overlayWin.setFocusable(!cfg.clickThrough);
     overlayWin.webContents.send("spectate:overlay:cfg", cfg);
     return;
   }

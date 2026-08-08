@@ -165,13 +165,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const unsub = window.controller.onGsiState((s) => {
       setGsiState(s);
       if (s.allplayers) {
-        const alive = Object.values(s.allplayers).filter(
-          (p) => p.state?.health > 0 && p.team === ("CT" as const)
-        ).length;
-        const aliveT = Object.values(s.allplayers).filter(
-          (p) => p.state?.health > 0 && p.team === ("T" as const)
-        ).length;
-        setGsiAlive(alive + aliveT);
+        const alive = Object.values(s.allplayers).filter((p) => (p.state?.health ?? 0) > 0).length;
+        setGsiAlive(alive);
       }
     });
     window.controller.spectateState().then((s) => s && setGsiState(s)).catch(() => undefined);

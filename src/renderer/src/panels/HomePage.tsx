@@ -382,7 +382,10 @@ export default function HomePage({
             {spectating ? t("spectate.starting") : t("spectate.start")}
           </button>
           <span className="hint" style={{ marginLeft: "auto" }}>
-            {t("spectate.autoDirector")} ✓
+            {t("spectate.autoDirector")}{" "}
+            <span className={`pill ${config?.spectate?.autoDirector ? "pill--accent" : ""}`}>
+              {config?.spectate?.autoDirector ? "ON" : "OFF"}
+            </span>
           </span>
         </div>
       </div>

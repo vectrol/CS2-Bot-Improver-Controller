@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Crosshair, Radio, Users } from "lucide-react";
+import { X, GripHorizontal, Radio } from "lucide-react";
 import { useI18n } from "../i18n";
 import { useStore } from "../state/store";
 import type { GsiState, SpectateConfig } from "../../../shared/types";
@@ -9,9 +9,8 @@ function fmtTime(sec: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function weaponName(name: string): string {
-  const short = name.replace("weapon_", "");
-  return short.length > 12 ? short.slice(0, 12) : short;
+function weaponShort(name: string): string {
+  return name.replace("weapon_", "").slice(0, 10);
 }
 
 const PHASE_KEYS: Record<string, string> = {
@@ -37,88 +36,135 @@ export default function OverlayApp() {
     return unsub;
   }, []);
 
-  const players = useMemo(() => {
-    if (!state?.allplayers) return [];
-    return Object.values(state.allplayers)
+  const { playersCt, playersT } = useMemo(() => {
+    const all = state?.allplayers ? Object.values(state.allplayers) : [];
+    const rows = all
       .filter((p) => p && p.name)
       .sort((a, b) => (b.match_stats?.kills ?? 0) - (a.match_stats?.kills ?? 0));
+    return {
+      playersCt: rows.filter((p) => p.team === "CT"),
+      playersT: rows.filter((p) => p.team === "T"),
+    };
   }, [state?.allplayers]);
 
   const mapName = state?.map?.name ? state.map.name.replace(/^de_/, "") : state?.provider?.map ?? "—";
   const ctScore = state?.round?.team_ct?.score ?? state?.map?.team_ct?.score ?? 0;
   const tScore = state?.round?.team_t?.score ?? state?.map?.team_t?.score ?? 0;
+  const roundNum = state?.round?.round_number ?? state?.map?.round ?? 0;
   const phaseKey = state?.phase_countdowns?.phase ?? state?.round?.phase;
   const phaseEnds = parseFloat(state?.phase_countdowns?.phase_ends_in ?? "0");
-  const aliveCt = players.filter((p) => p.team === "CT" && p.state?.health > 0).length;
-  const aliveT = players.filter((p) => p.team === "T" && p.state?.health > 0).length;
+  const aliveCt = playersCt.filter((p) => p.state?.health > 0).length;
+  const aliveT = playersT.filter((p) => p.state?.health > 0).length;
   const showTimer = cfg?.showTimer !== false && (phaseKey === "live" || phaseKey === "bomb" || phaseKey === "defuse");
   const bombState = state?.round?.bomb;
 
   if (!cfg) return null;
-  const fontScale = cfg.fontScale ?? 1;
+  const scale = cfg.fontScale ?? 1;
+
+  const PlayerRow = ({ p }: { p: NonNullable<GsiState["allplayers"]>[string] }) => {
+    const alive = (p.state?.health ?? 0) > 0;
+    const primary = Object.values(p.weapons ?? {}).find(
+      (w) => w?.type === "Rifle" || w?.type === "SniperRifle" || w?.type === "Machine Gun"
+    );
+    return (
+      <div className={`hud-player ${alive ? "" : "hud-player--dead"}`}>
+        <div className={`hud-player__team hud-player__team--${p.team?.toLowerCase()}`} />
+        <div className="hud-player__body">
+          <div className="hud-player__top">
+            <span className="hud-player__name">{p.name}</span>
+            <span className="hud-player__rk">{p.state?.round_kills ?? 0}</span>
+          </div>
+          <div className="hud-player__bottom">
+            <span className="hud-player__k">
+              {p.match_stats?.kills ?? 0}
+              <i>/</i>
+              {p.match_stats?.deaths ?? 0}
+            </span>
+            <span className="hud-player__money">{p.state?.money ?? 0}</span>
+            <span className="hud-player__gun">{primary ? weaponShort(primary.name) : "—"}</span>
+            <div className="hud-player__hp">
+              <div
+                className="hud-player__hpbar"
+                style={{ width: `${Math.max(0, Math.min(100, p.state?.health ?? 0))}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div
-      className="overlay"
-      style={{
-        opacity: cfg.opacity ?? 0.92,
-        fontSize: `${14 * fontScale}px`,
-      }}
-    >
-      <div className="overlay__panel">
+    <div className="overlay" style={{ fontSize: `${14 * scale}px` }}>
+      {!cfg.clickThrough && (
+        <div className="overlay__chrome">
+          <GripHorizontal size={12} />
+          <button className="overlay__close" onClick={() => window.controller.overlayClose()}>
+            <X size={11} />
+          </button>
+        </div>
+      )}
+
+      <div className="hud-panel">
         {cfg.showScore !== false && (
-          <div className="overlay__score">
-            <span className="overlay__team overlay__team--ct">
-              {aliveCt !== undefined && <span className="overlay__alive">{aliveCt}▲</span>}
-              <b>{ctScore}</b>
-            </span>
-            <span className="overlay__map">
-              {mapName}
-              <Radio size={11} style={{ verticalAlign: -1 }} />
-            </span>
-            <span className="overlay__team overlay__team--t">
-              <b>{tScore}</b>
-              <span className="overlay__alive">{aliveT}▲</span>
-            </span>
+          <div className="hud-matchbar">
+            <div className="hud-team hud-team--ct">
+              <span className="hud-team__alive">{aliveCt}</span>
+              <span className="hud-team__score">{ctScore}</span>
+              <div className="hud-team__bar">
+                <div className="hud-team__barfill" style={{ width: `${(aliveCt / Math.max(1, playersCt.length)) * 100}%` }} />
+              </div>
+            </div>
+            <div className="hud-timer">
+              {showTimer && <div className="hud-timer__text">{fmtTime(phaseEnds)}</div>}
+              <div className="hud-timer__round">
+                {roundNum > 0 ? `R${roundNum}` : mapName}
+              </div>
+              <div className="hud-timer__phase">
+                <span className={`hud-phase ${phaseKey === "bomb" ? "hud-phase--bomb" : ""}`}>
+                  {t(PHASE_KEYS[phaseKey ?? ""] ?? "spectate.phaseLive")}
+                </span>
+                {bombState && (
+                  <span className="hud-bomb">
+                    <Radio size={9} /> {t(`spectate.bomb${bombState.charAt(0).toUpperCase()}${bombState.slice(1)}` as never) ?? bombState}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="hud-team hud-team--t">
+              <div className="hud-team__bar">
+                <div className="hud-team__barfill" style={{ width: `${(aliveT / Math.max(1, playersT.length)) * 100}%` }} />
+              </div>
+              <span className="hud-team__score">{tScore}</span>
+              <span className="hud-team__alive">{aliveT}</span>
+            </div>
           </div>
         )}
-        {showTimer && (
-          <div className="overlay__round">
-            <span className={`overlay__phase ${phaseKey === "bomb" ? "overlay__phase--bomb" : ""}`}>
-              {t(PHASE_KEYS[phaseKey ?? ""] ?? "spectate.phaseLive")}
-            </span>
-            <span className="overlay__time">{fmtTime(phaseEnds)}</span>
-            {bombState && <span className="overlay__bomb">💣 {t(`spectate.bomb${bombState.charAt(0).toUpperCase()}${bombState.slice(1)}` as never) ?? bombState}</span>}
+
+        {cfg.showPlayers !== false && (playersCt.length > 0 || playersT.length > 0) && (
+          <div className="hud-teams">
+            <div className="hud-teamcol hud-teamcol--ct">
+              {playersCt.map((p, i) => (
+                <PlayerRow key={i} p={p} />
+              ))}
+            </div>
+            <div className="hud-teamcol hud-teamcol--t">
+              {playersT.map((p, i) => (
+                <PlayerRow key={i} p={p} />
+              ))}
+            </div>
           </div>
         )}
-        {cfg.showPlayers !== false && (
-          <div className="overlay__players">
-            {players.map((p, i) => {
-              const primary = Object.values(p.weapons ?? {}).find(
-                (w) => w?.type === "Rifle" || w?.type === "SniperRifle" || w?.type === "Submachine Gun" || w?.type === "Machine Gun" || w?.type === "Pistol"
-              );
-              return (
-                <div key={i} className={`overlay__player ${p.state?.health > 0 ? "" : "overlay__player--dead"}`}>
-                  <span className={`overlay__player-team overlay__player-team--${p.team?.toLowerCase()}`} />
-                  <span className="overlay__player-name">{p.name}</span>
-                  <span className="overlay__player-k">{p.match_stats?.kills ?? 0}</span>
-                  <span className="overlay__player-d">{p.match_stats?.deaths ?? 0}</span>
-                  <span className="overlay__player-money">{p.state?.money ?? 0}</span>
-                  <span className="overlay__player-gun">{primary ? weaponName(primary.name) : "—"}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {(!state || players.length === 0) && (
-          <div className="overlay__empty">
-            <Crosshair size={14} className="dot--pulse" style={{ color: "var(--accent)" }} />
+
+        {!state && (
+          <div className="hud-waiting">
+            <span className="hud-waiting__dot" />
             {t("spectate.waiting")}
           </div>
         )}
-        <div className="overlay__auto">
-          <Users size={10} />
-          {t("spectate.autoDirector")}
+
+        <div className={`hud-director ${cfg.autoDirector ? "" : "hud-director--off"}`}>
+          {t("spectate.autoDirector")} {cfg.autoDirector ? "ON" : "OFF"}
         </div>
       </div>
     </div>
