@@ -17,6 +17,7 @@ import {
   Upload,
   Terminal,
   Database,
+  Clapperboard,
 } from "lucide-react";
 import { useI18n, type Lang } from "../i18n";
 import { useStore } from "../state/store";
@@ -63,6 +64,7 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
   const { t, lang, setLang } = useI18n();
   const store = useStore();
   const { config, botItems, presets, dropKnives, cs2Running, updateInfo, controllerUpdate } = store;
+  const sp = config?.spectate;
   const [capturing, setCapturing] = useState(false);
   const keyInputRef = useRef<HTMLButtonElement>(null);
   const [controllerVersion, setControllerVersion] = useState("1.1.0");
@@ -224,6 +226,137 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
 
         {installed && (
           <>
+            <div className="card">
+              <div className="card__title" style={{ marginBottom: 8 }}>
+                <div className="card__icon">
+                  <Clapperboard size={14} />
+                </div>
+                {t("spectate.overlay")}
+              </div>
+              <div className="hint" style={{ marginBottom: 10 }}>{t("spectate.overlayDesc")}</div>
+              <div className="setting-row">
+                <div className="setting-row__info">
+                  <div className="setting-row__title">{t("spectate.overlay")}</div>
+                  <div className="setting-row__desc">{t("spectate.overlayDesc")}</div>
+                </div>
+                <button
+                  className={`toggle ${sp?.overlayEnabled ? "toggle--on" : ""}`}
+                  onClick={() => store.overlayPatch({ overlayEnabled: !sp?.overlayEnabled })}
+                />
+              </div>
+              {sp?.overlayEnabled && (
+                <>
+                  <div className="setting-row">
+                    <div className="setting-row__info">
+                      <div className="setting-row__title">{t("spectate.position")}</div>
+                    </div>
+                    <select
+                      className="text-input"
+                      style={{ width: 150 }}
+                      value={sp.position}
+                      onChange={(e) => store.overlayPatch({ position: e.target.value })}
+                    >
+                      {[
+                        "custom",
+                        "top-left",
+                        "top-center",
+                        "top-right",
+                        "bottom-left",
+                        "bottom-center",
+                        "bottom-right",
+                      ].map((p) => (
+                        <option key={p} value={p}>
+                          {t(`spectate.pos${p === "custom" ? "Custom" : p.split("-").map((s) => s[0].toUpperCase() + s.slice(1)).join("")}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="setting-row">
+                    <div className="setting-row__info">
+                      <div className="setting-row__title">{t("spectate.size")}</div>
+                    </div>
+                    <input
+                      type="range"
+                      min={280}
+                      max={560}
+                      step={20}
+                      value={sp.width}
+                      onChange={(e) => store.overlayPatch({ width: Number(e.target.value) })}
+                      className="range-input"
+                    />
+                    <span className="hint">{sp.width}px</span>
+                  </div>
+                  <div className="setting-row">
+                    <div className="setting-row__info">
+                      <div className="setting-row__title">{t("spectate.opacity")}</div>
+                    </div>
+                    <input
+                      type="range"
+                      min={30}
+                      max={100}
+                      step={5}
+                      value={Math.round(sp.opacity * 100)}
+                      onChange={(e) => store.overlayPatch({ opacity: Number(e.target.value) / 100 })}
+                      className="range-input"
+                    />
+                    <span className="hint">{Math.round(sp.opacity * 100)}%</span>
+                  </div>
+                  <div className="setting-row">
+                    <div className="setting-row__info">
+                      <div className="setting-row__title">{t("spectate.fontScale")}</div>
+                    </div>
+                    <input
+                      type="range"
+                      min={75}
+                      max={150}
+                      step={5}
+                      value={Math.round(sp.fontScale * 100)}
+                      onChange={(e) => store.overlayPatch({ fontScale: Number(e.target.value) / 100 })}
+                      className="range-input"
+                    />
+                    <span className="hint">{Math.round(sp.fontScale * 100)}%</span>
+                  </div>
+                  <div className="setting-row">
+                    <div className="setting-row__info">
+                      <div className="setting-row__title">{t("spectate.clickThrough")}</div>
+                      <div className="setting-row__desc">{t("spectate.clickThroughDesc")}</div>
+                    </div>
+                    <button
+                      className={`toggle ${sp.clickThrough ? "toggle--on" : ""}`}
+                      onClick={() => store.overlayPatch({ clickThrough: !sp.clickThrough })}
+                    />
+                  </div>
+                  <div className="setting-row">
+                    <div className="setting-row__info">
+                      <div className="setting-row__title">{t("spectate.showScore")}</div>
+                    </div>
+                    <button
+                      className={`toggle ${sp.showScore !== false ? "toggle--on" : ""}`}
+                      onClick={() => store.overlayPatch({ showScore: sp.showScore === false })}
+                    />
+                  </div>
+                  <div className="setting-row">
+                    <div className="setting-row__info">
+                      <div className="setting-row__title">{t("spectate.showTimer")}</div>
+                    </div>
+                    <button
+                      className={`toggle ${sp.showTimer !== false ? "toggle--on" : ""}`}
+                      onClick={() => store.overlayPatch({ showTimer: sp.showTimer === false })}
+                    />
+                  </div>
+                  <div className="setting-row">
+                    <div className="setting-row__info">
+                      <div className="setting-row__title">{t("spectate.showPlayers")}</div>
+                    </div>
+                    <button
+                      className={`toggle ${sp.showPlayers !== false ? "toggle--on" : ""}`}
+                      onClick={() => store.overlayPatch({ showPlayers: sp.showPlayers === false })}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="card">
               <div className="card__title" style={{ marginBottom: 4 }}>
                 <div className="card__icon">

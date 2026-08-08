@@ -38,6 +38,22 @@ const api = {
   launchOptionsSet: (custom: string) => ipcRenderer.invoke("launch:options:set", custom),
   dataExport: (payload: string) => ipcRenderer.invoke("data:export", payload) as Promise<boolean>,
   dataImport: () => ipcRenderer.invoke("data:import") as Promise<string | null>,
+  spectateMaps: () => ipcRenderer.invoke("spectate:maps"),
+  spectateStart: (map: string) => ipcRenderer.invoke("spectate:start", map),
+  spectateState: () => ipcRenderer.invoke("spectate:state"),
+  gsiStatus: () => ipcRenderer.invoke("gsi:status"),
+  overlaySet: (patch: any) => ipcRenderer.invoke("spectate:overlay", patch),
+  overlayClose: () => ipcRenderer.invoke("spectate:overlay:close"),
+  onGsiState: (cb: (s: any) => void) => {
+    const listener = (_e: unknown, s: any) => cb(s);
+    ipcRenderer.on("gsi:state", listener);
+    return () => ipcRenderer.removeListener("gsi:state", listener);
+  },
+  onOverlayCfg: (cb: (cfg: any) => void) => {
+    const listener = (_e: unknown, cfg: any) => cb(cfg);
+    ipcRenderer.on("spectate:overlay:cfg", listener);
+    return () => ipcRenderer.removeListener("spectate:overlay:cfg", listener);
+  },
   commandsLoad: () => ipcRenderer.invoke("commands:load"),
   windowMinimize: () => ipcRenderer.send("win:minimize"),
   windowMaximize: () => ipcRenderer.send("win:maximize"),

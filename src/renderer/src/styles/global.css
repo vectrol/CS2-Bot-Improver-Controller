@@ -1168,6 +1168,231 @@ body.compact .stack {
   font-weight: 600;
 }
 
+/* ---------- spectate overlay ---------- */
+.overlay-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  padding: 10px;
+  font-family: var(--font);
+  color: var(--text);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.overlay__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(10, 14, 20, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.overlay__score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.overlay__team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.05em;
+}
+.overlay__team b {
+  font-size: 1.35em;
+  font-weight: 800;
+}
+.overlay__team--ct b {
+  color: #7fb2ff;
+}
+.overlay__team--t b {
+  color: var(--accent-strong);
+}
+.overlay__alive {
+  font-size: 0.85em;
+  color: var(--text-dim);
+}
+
+.overlay__map {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text);
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+}
+
+.overlay__round {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.overlay__phase {
+  font-size: 0.78em;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+.overlay__phase--bomb {
+  background: rgba(240, 82, 94, 0.2);
+  color: #ff8a94;
+  animation: bomb-pulse 1s var(--ease) infinite;
+}
+
+@keyframes bomb-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.overlay__time {
+  font-size: 1.15em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.overlay__bomb {
+  font-size: 0.78em;
+  color: #ff8a94;
+  margin-left: auto;
+}
+
+.overlay__players {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  max-height: 40%;
+}
+
+.overlay__player {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82em;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  -webkit-app-region: no-drag;
+}
+.overlay__player--dead {
+  opacity: 0.42;
+}
+.overlay__player-team {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.overlay__player-team--ct {
+  background: #4f9dff;
+}
+.overlay__player-team--t {
+  background: var(--accent);
+}
+.overlay__player-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-weight: 600;
+}
+.overlay__player-k {
+  color: var(--green);
+  font-weight: 700;
+}
+.overlay__player-d {
+  color: var(--red);
+  font-weight: 700;
+}
+.overlay__player-money {
+  font-variant-numeric: tabular-nums;
+}
+.overlay__player-gun {
+  font-size: 0.8em;
+  color: var(--text-faint);
+  min-width: 58px;
+  text-align: right;
+}
+
+.overlay__empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85em;
+  color: var(--text-dim);
+  padding: 14px 4px;
+}
+
+.overlay__auto {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 0.7em;
+  letter-spacing: 1px;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* ---------- spectate card (main window) ---------- */
+.spectate-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+}
+
+.range-input {
+  -webkit-appearance: none;
+  width: 140px;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+}
+.range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  box-shadow: 0 0 8px var(--accent-glow);
+  cursor: pointer;
+  transition: transform 0.15s var(--ease-spring);
+}
+.range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
 /* ---------- misc ---------- */
 .divider {
   height: 1px;

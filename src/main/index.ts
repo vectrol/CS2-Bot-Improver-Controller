@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell, screen } from "electron";
 import { join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { getConfig, saveConfig } from "./config";
@@ -34,8 +34,18 @@ import {
 } from "./launch";
 import { PLUGIN_VERSION } from "../shared/types";
 import { checkPluginUpdate, checkControllerUpdate, getCachedPluginUpdate, getCachedControllerUpdate } from "./updates";
+import {
+  startGsiServer,
+  stopGsiServer,
+  getGsiState,
+  gsiStatus,
+  broadcastGsiState,
+} from "./gsi";
+import { launchSpectate, writeSpectateFiles, OFFICIAL_MAPS } from "./spectate";
+import type { SpectateConfig } from "../shared/types";
 
 let win: BrowserWindow | null = null;
+let overlayWin: BrowserWindow | null = null;
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -295,6 +305,106 @@ function registerIpc(): void {
   });
 
   ipcMain.handle("commands:load", () => loadCommandBlocks());
+
+  // ---- spectate / overlay ----
+  ipcMain.handle("spectate:maps", () => OFFICIAL_MAPS);
+  ipcMain.handle("spectate:start", async (_e, map: string) => {
+    const csgo = currentCsgo();
+    if (!csgo) throw new Error("csgo directory not set");
+    return launchSpectate(csgo, map);
+  });
+  ipcMain.handle("spectate:state", () => getGsiState());
+  ipcMain.handle("gsi:status", () => gsiStatus());
+  ipcMain.handle("spectate:overlay", (_e, patch: Partial<SpectateConfig>) => {
+    const next = saveConfig({ spectate: { ...getConfig().spectate, ...patch } }).spectate;
+    applyOverlay(next);
+    return next;
+  });
+  ipcMain.handle("spectate:overlay:close", () => {
+    closeOverlay();
+    return true;
+  });
+}
+
+function overlayScreenBounds(cfg: SpectateConfig): { x: number; y: number; width: number; height: number } {
+  const width = cfg.width;
+  const height = cfg.height;
+  const { workArea } = screen.getPrimaryDisplay();
+  const margin = 24;
+  switch (cfg.position) {
+    case "top-center":
+      return { x: workArea.x + Math.round(workArea.width / 2 - width / 2), y: workArea.y + margin, width, height };
+    case "top-right":
+      return { x: workArea.x + workArea.width - width - margin, y: workArea.y + margin, width, height };
+    case "bottom-left":
+      return { x: workArea.x + margin, y: workArea.y + workArea.height - height - margin, width, height };
+    case "bottom-center":
+      return { x: workArea.x + Math.round(workArea.width / 2 - width / 2), y: workArea.y + workArea.height - height - margin, width, height };
+    case "bottom-right":
+      return { x: workArea.x + workArea.width - width - margin, y: workArea.y + workArea.height - height - margin, width, height };
+    default:
+      return { x: cfg.x, y: cfg.y, width, height };
+  }
+}
+
+function applyOverlay(cfg: SpectateConfig): void {
+  if (!cfg.overlayEnabled) {
+    closeOverlay();
+    return;
+  }
+  if (overlayWin && !overlayWin.isDestroyed()) {
+    const bounds = overlayScreenBounds(cfg);
+    overlayWin.setBounds(bounds);
+    overlayWin.setOpacity(cfg.opacity);
+    overlayWin.setIgnoreMouseEvents(cfg.clickThrough, { forward: true });
+    overlayWin.webContents.send("spectate:overlay:cfg", cfg);
+    return;
+  }
+  const bounds = overlayScreenBounds(cfg);
+  overlayWin = new BrowserWindow({
+    ...bounds,
+    frame: false,
+    transparent: true,
+    backgroundColor: "#00000000",
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    hasShadow: false,
+    focusable: !cfg.clickThrough,
+    webPreferences: {
+      preload: join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+  overlayWin.setOpacity(cfg.opacity);
+  overlayWin.setIgnoreMouseEvents(cfg.clickThrough, { forward: true });
+  overlayWin.setAlwaysOnTop(true, "screen-saver");
+
+  const persist = () => {
+    if (!overlayWin || overlayWin.isDestroyed()) return;
+    const b = overlayWin.getBounds();
+    saveConfig({ spectate: { ...getConfig().spectate, x: b.x, y: b.y } });
+  };
+  overlayWin.on("move", () => {
+    clearTimeout((overlayWin as unknown as { __t?: NodeJS.Timeout }).__t);
+    (overlayWin as unknown as { __t?: NodeJS.Timeout }).__t = setTimeout(persist, 500);
+  });
+
+  const devUrl = process.env.VITE_DEV_SERVER_URL;
+  if (devUrl) {
+    overlayWin.loadURL(devUrl + "#overlay");
+  } else {
+    overlayWin.loadFile(join(__dirname, "..", "..", "dist", "index.html"), { hash: "overlay" });
+  }
+}
+
+function closeOverlay(): void {
+  if (overlayWin && !overlayWin.isDestroyed()) {
+    overlayWin.destroy();
+  }
+  overlayWin = null;
 }
 
 app.whenReady().then(() => {
@@ -309,11 +419,32 @@ app.whenReady().then(() => {
   ipcMain.handle("open:external", (_e, url: string) => shell.openExternal(url));
   createWindow();
 
+  startGsiServer((state) => {
+    const targets = [win, overlayWin].filter((w): w is BrowserWindow => !!w && !w.isDestroyed());
+    broadcastGsiState(targets);
+  }).catch(() => {
+    /* port busy — GSI disabled, spectate overlay shows waiting state */
+  });
+
+  // Overlay auto-restore at startup if it was enabled.
+  const cfg = getConfig();
+  if (cfg.spectate?.overlayEnabled) applyOverlay(cfg.spectate);
+  const csgo = currentCsgo();
+  if (csgo) {
+    try {
+      writeSpectateFiles(csgo);
+    } catch {
+      /* best-effort */
+    }
+  }
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on("window-all-closed", () => {
+  closeOverlay();
+  stopGsiServer();
   if (process.platform !== "darwin") app.quit();
 });

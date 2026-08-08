@@ -14,10 +14,33 @@ import HomePage from "./panels/HomePage";
 import CommandsPage from "./panels/CommandsPage";
 import SettingsPage from "./panels/SettingsPage";
 import ErrorModal from "./components/ErrorModal";
+import OverlayApp from "./panels/OverlayApp";
 
 type View = "home" | "commands" | "settings";
 
 export default function App() {
+  // The overlay window loads the same bundle with #overlay.
+  if (window.location.hash === "#overlay") {
+    return <OverlayShell />;
+  }
+  return <MainShell />;
+}
+
+function OverlayShell() {
+  const { config, error, clearError } = useStore();
+  useEffect(() => {
+    applyTheme(config?.appearance?.accent ?? "#f2a33c", false);
+  }, [config?.appearance?.accent]);
+  return (
+    <div className="overlay-root">
+      <div className="bg-glow" style={{ opacity: 0.4 }} />
+      <OverlayApp />
+      <ErrorModal message={error} onClose={clearError} />
+    </div>
+  );
+}
+
+function MainShell() {
   const { t, setLang } = useI18n();
   const { ready, toast, config, error, clearError } = useStore();
   const [view, setView] = useState<View>("home");
