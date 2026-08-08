@@ -4,6 +4,7 @@ dist/
 release/
 resources/CS2BotImprover.zip
 resources/Commands.txt
+resources/manifest.json
 build/ui-home.png
 *.log
 .DS_Store
