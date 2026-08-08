@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Package,
   Download,
@@ -19,7 +19,6 @@ import {
   Dices,
   UserX,
   UserPlus,
-  Clapperboard,
   type LucideIcon,
 } from "lucide-react";
 import { useI18n } from "../i18n";
@@ -60,53 +59,9 @@ export default function HomePage({
     config,
     updateInfo,
     controllerUpdate,
-    gsiState,
   } = store;
   const installed = !!files?.ok;
   const [launching, setLaunching] = useState(false);
-  const [spectateMap, setSpectateMap] = useState(config?.spectate?.lastMap ?? "de_mirage");
-  const [spectating, setSpectating] = useState(false);
-  const [maps, setMaps] = useState<string[]>([]);
-
-  useEffect(() => {
-    window.controller.spectateMaps().then(setMaps).catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    if (config?.spectate?.lastMap) setSpectateMap(config.spectate.lastMap);
-  }, [config?.spectate?.lastMap]);
-
-  const mapShort = useMemo(() => {
-    const name = gsiState?.map?.name ?? gsiState?.provider?.map ?? "";
-    return name.replace(/^de_/, "");
-  }, [gsiState]);
-
-  const spectateStatusStyle = useMemo(() => {
-    const live = gsiState && (gsiState.map?.name || gsiState.provider?.map);
-    return live
-      ? { borderColor: "rgba(61,220,132,.4)", background: "rgba(61,220,132,.08)", color: "var(--green)" }
-      : undefined;
-  }, [gsiState]);
-
-  const startSpectate = useCallback(async () => {
-    if (!installed || cs2Running) return;
-    setSpectating(true);
-    try {
-      const result = await store.startSpectate(spectateMap);
-      if (result.launched) {
-        store.showToast(`✓ ${t("spectate.live")}`);
-        if (config?.spectate?.overlayEnabled) {
-          store.overlayPatch({ overlayEnabled: true });
-        }
-      } else if (result.error === "cs2 already running") {
-        store.showToast(t("mode.running"));
-      } else {
-        store.reportError(result.error ?? "spectate failed");
-      }
-    } finally {
-      setSpectating(false);
-    }
-  }, [installed, cs2Running, spectateMap, store, t, config?.spectate?.overlayEnabled]);
 
   const doInstall = useCallback(async () => {
     if (cs2Running) {
@@ -331,64 +286,6 @@ export default function HomePage({
           </div>
         </div>
       )}
-
-      <div className="card spectate-card" style={{ marginBottom: 14 }}>
-        <div className="card__head">
-          <div className="card__title">
-            <div className="card__icon">
-              <Clapperboard size={15} />
-            </div>
-            {t("spectate.title")}
-          </div>
-          <div className="row">
-            <span className="pill" style={spectateStatusStyle}>
-              {gsiState && (gsiState.map?.name || gsiState.provider?.map) ? (
-                <>
-                  <span className="dot dot--green dot--pulse" style={{ color: "var(--green)" }} />
-                  {t("spectate.live")} · {mapShort}
-                </>
-              ) : (
-                <>
-                  <span className="dot dot--yellow" style={{ color: "var(--yellow)" }} />
-                  {t("spectate.waiting")}
-                </>
-              )}
-            </span>
-            <button
-              className={`toggle ${config?.spectate?.overlayEnabled ? "toggle--on" : ""}`}
-              title={t("spectate.overlay")}
-              onClick={() => store.overlayPatch({ overlayEnabled: !config?.spectate?.overlayEnabled })}
-            />
-          </div>
-        </div>
-        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <select
-            className="text-input"
-            value={spectateMap}
-            onChange={(e) => setSpectateMap(e.target.value)}
-          >
-            {maps.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn btn--primary btn--sm"
-            disabled={!installed || cs2Running || spectating}
-            onClick={startSpectate}
-          >
-            {spectating ? <RefreshCw size={13} className="dot--pulse" style={{ color: "var(--accent)" }} /> : <Clapperboard size={13} />}
-            {spectating ? t("spectate.starting") : t("spectate.start")}
-          </button>
-          <span className="hint" style={{ marginLeft: "auto" }}>
-            {t("spectate.autoDirector")}{" "}
-            <span className={`pill ${config?.spectate?.autoDirector ? "pill--accent" : ""}`}>
-              {config?.spectate?.autoDirector ? "ON" : "OFF"}
-            </span>
-          </span>
-        </div>
-      </div>
 
       <div className="grid grid--2">
         <div className="card">

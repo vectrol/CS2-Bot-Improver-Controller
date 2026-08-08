@@ -4,7 +4,7 @@ const path = require("node:path");
 setTimeout(() => {
   console.log("TIMEOUT");
   app.exit(2);
-}, 60000);
+}, 45000);
 
 const MIN_CONFIG = {
   language: "zh-CN",
@@ -19,22 +19,6 @@ const MIN_CONFIG = {
   dropKnifeSubclasses: [500],
   launchOptions: "",
   appearance: { accent: "#f2a33c", compact: false },
-  spectate: {
-    overlayEnabled: true,
-    autoDirector: true,
-    x: 80,
-    y: 80,
-    width: 420,
-    height: 260,
-    opacity: 0.92,
-    fontScale: 1,
-    clickThrough: false,
-    showScore: true,
-    showTimer: true,
-    showPlayers: true,
-    position: "top-left",
-    lastMap: "de_mirage",
-  },
 };
 
 app.whenReady().then(() => {
@@ -51,11 +35,9 @@ app.whenReady().then(() => {
   ipcMain.handle("knives:get", () => null);
   ipcMain.handle("updates:cached", () => null);
   ipcMain.handle("updates:check", () => ({ current: "1.4.3", latest: null, hasUpdate: false, error: "offline" }));
-  ipcMain.handle("updates:controller", () => ({ current: "1.2.0", latest: null, hasUpdate: false, error: "offline" }));
-  ipcMain.handle("spectate:state", () => null);
-  ipcMain.handle("spectate:maps", () => ["de_mirage"]);
-  ipcMain.handle("gsi:status", () => ({ running: false, port: 8123, lastUpdate: 0 }));
+  ipcMain.handle("updates:controller", () => ({ current: "1.4.1", latest: null, hasUpdate: false, error: "offline" }));
   ipcMain.handle("package:verify", () => ({ ok: true, expected: "", actual: "" }));
+
   const win = new BrowserWindow({
     width: 860,
     height: 640,
@@ -72,68 +54,32 @@ app.whenReady().then(() => {
     if (/error|uncaught/i.test(message)) errors.push(message);
   });
 
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  (async () => {
-    // Phase 1: main window
-    await win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
-    await sleep(4000);
-    let pass1 = false;
-    try {
-      const result = await win.webContents.executeJavaScript(`
-        (() => {
-          const root = document.getElementById("root");
-          const hasController = typeof window.controller === "object" && typeof window.controller.version === "function";
-          return {
-            hasController,
-            children: root ? root.children.length : 0,
-            text: root ? root.textContent.slice(0, 120) : "",
-            title: document.title,
-          };
-        })()
-      `);
-      console.log("UI-CHECK:", JSON.stringify(result));
-      pass1 = result.hasController && result.children > 0 && result.title.includes("CS2");
-      console.log(pass1 ? "UI SMOKE PASSED" : "UI SMOKE FAILED");
-    } catch (e) {
-      console.log("UI-CHECK EXCEPTION:", e.message);
-    }
-
-    // Phase 2: overlay window (separate window — mirrors the real overlay flow)
-    const overlay = new BrowserWindow({
-      width: 420,
-      height: 260,
-      show: false,
-      webPreferences: {
-        preload: path.join(__dirname, "..", "out", "main", "preload.js"),
-        contextIsolation: true,
-        nodeIntegration: false,
-      },
-    });
-    await overlay.loadFile(path.join(__dirname, "..", "dist", "index.html"), { hash: "overlay" });
-    await sleep(3000);
-    let pass2 = false;
-    try {
-      const result = await overlay.webContents.executeJavaScript(`
-        (() => {
-          const root = document.getElementById("root");
-          return {
-            isOverlay: !!document.querySelector(".overlay"),
-            hasPanel: !!document.querySelector(".hud-panel"),
-            hasChrome: !!document.querySelector(".overlay__chrome"),
-            hasDirector: !!document.querySelector(".hud-director"),
-            text: root ? root.textContent.slice(0, 100) : "",
-          };
-        })()
-      `);
-      console.log("OVERLAY-CHECK:", JSON.stringify(result));
-      pass2 = result.isOverlay && result.hasPanel && result.hasChrome && result.hasDirector;
-      console.log(pass2 ? "OVERLAY SMOKE PASSED" : "OVERLAY SMOKE FAILED");
-    } catch (e) {
-      console.log("OVERLAY-CHECK EXCEPTION:", e.message);
-    }
-
-    if (errors.length) console.log("CONSOLE ERRORS:", JSON.stringify(errors));
-    app.exit(pass1 && pass2 ? 0 : 1);
-  })();
+  win.loadFile(path.join(__dirname, "..", "dist", "index.html")).then(() => {
+    setTimeout(async () => {
+      try {
+        const result = await win.webContents.executeJavaScript(`
+          (() => {
+            const root = document.getElementById("root");
+            const hasController = typeof window.controller === "object" && typeof window.controller.version === "function";
+            return {
+              hasController,
+              children: root ? root.children.length : 0,
+              text: root ? root.textContent.slice(0, 120) : "",
+              title: document.title,
+              noOverlay: !document.querySelector(".overlay"),
+            };
+          })()
+        `);
+        console.log("UI-CHECK:", JSON.stringify(result));
+        const pass =
+          result.hasController && result.children > 0 && result.title.includes("CS2") && result.noOverlay;
+        console.log(pass ? "UI SMOKE PASSED" : "UI SMOKE FAILED");
+        if (errors.length) console.log("CONSOLE ERRORS:", JSON.stringify(errors));
+        app.exit(pass ? 0 : 1);
+      } catch (e) {
+        console.log("UI-CHECK EXCEPTION:", e.message);
+        app.exit(1);
+      }
+    }, 4000);
+  });
 });

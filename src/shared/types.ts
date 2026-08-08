@@ -28,7 +28,6 @@ export type AppConfig = {
   dropKnifeSubclasses: number[];
   launchOptions: string;
   appearance: AppearanceConfig;
-  spectate: SpectateConfig;
   windowBounds?: { x?: number; y?: number; width?: number; height?: number };
 };
 
@@ -127,79 +126,4 @@ export type CommandBlock = {
   section: string;
   title: string;
   commands: string[];
-};
-
-// ---- Spectate / GSI ----
-
-export type GsiPlayerWeapon = {
-  name: string;
-  paintkit?: string;
-  type?: string;
-  ammo_clip?: number;
-  ammo_reserve?: number;
-  state?: string;
-};
-
-export type GsiPlayer = {
-  name: string;
-  observer_slot?: number;
-  team: "T" | "CT";
-  state: {
-    health: number;
-    armor?: number;
-    helmet?: boolean;
-    money?: number;
-    round_kills?: number;
-    round_killhs?: number;
-    defusekit?: boolean;
-    burning?: number;
-    equip_value?: number;
-  };
-  weapons?: Record<string, GsiPlayerWeapon>;
-  match_stats?: { kills: number; assists: number; deaths: number; mvps: number; score: number };
-  position?: string;
-};
-
-export type GsiState = {
-  provider?: { name: string; map: string; steamid: string; timestamp: number };
-  map?: {
-    name: string;
-    mode?: string;
-    phase?: string;
-    round?: number;
-    team_ct: { score: number };
-    team_t: { score: number };
-  };
-  round?: {
-    phase?: string;
-    round_number?: number;
-    bomb?: string;
-    team_ct?: { score: number };
-    team_t?: { score: number };
-  };
-  phase_countdowns?: { phase?: string; phase_ends_in?: string };
-  allplayers?: Record<string, GsiPlayer>;
-};
-
-export type SpectateConfig = {
-  overlayEnabled: boolean;
-  autoDirector: boolean;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  opacity: number; // 0.3 - 1
-  fontScale: number; // 0.75 - 1.5
-  clickThrough: boolean;
-  showScore: boolean;
-  showTimer: boolean;
-  showPlayers: boolean;
-  position: string;
-  lastMap: string;
-};
-
-export type SpectateLaunchResult = {
-  launched: boolean;
-  map: string;
-  error?: string;
 };

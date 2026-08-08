@@ -19,22 +19,6 @@ const DEFAULTS: AppConfig = {
   ],
   launchOptions: "",
   appearance: { accent: "#f2a33c", compact: false },
-  spectate: {
-    overlayEnabled: false,
-    autoDirector: true,
-    x: 80,
-    y: 80,
-    width: 420,
-    height: 260,
-    opacity: 0.92,
-    fontScale: 1,
-    clickThrough: false,
-    showScore: true,
-    showTimer: true,
-    showPlayers: true,
-    position: "top-left",
-    lastMap: "de_mirage",
-  },
 };
 
 let cache: AppConfig | null = null;

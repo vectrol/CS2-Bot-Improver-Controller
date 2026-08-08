@@ -16,12 +16,9 @@ import type {
   DirectoryInfo,
   DropKnivesState,
   FilesReport,
-  GsiState,
   ModeInfo,
   PresetsState,
   AimValue,
-  SpectateConfig,
-  SpectateLaunchResult,
 } from "../../../shared/types";
 
 declare global {
@@ -59,14 +56,6 @@ declare global {
       launchOptionsSet: (custom: string) => Promise<{ options: string; insecure: boolean }>;
       dataExport: (payload: string) => Promise<boolean>;
       dataImport: () => Promise<string | null>;
-      spectateMaps: () => Promise<string[]>;
-      spectateStart: (map: string) => Promise<SpectateLaunchResult>;
-      spectateState: () => Promise<GsiState | null>;
-      gsiStatus: () => Promise<{ running: boolean; port: number; lastUpdate: number }>;
-      overlaySet: (patch: Partial<SpectateConfig>) => Promise<SpectateConfig>;
-      overlayClose: () => Promise<boolean>;
-      onGsiState: (cb: (s: GsiState) => void) => () => void;
-      onOverlayCfg: (cb: (cfg: SpectateConfig) => void) => () => void;
       commandsLoad: () => Promise<any[]>;
       windowMinimize: () => void;
       windowMaximize: () => void;
@@ -119,10 +108,6 @@ type Store = {
   exportData: () => Promise<boolean>;
   importData: () => Promise<boolean>;
   launch: () => Promise<{ launched: boolean; error?: string }>;
-  gsiState: GsiState | null;
-  gsiAlive: number;
-  overlayPatch: (patch: Partial<SpectateConfig>) => Promise<void>;
-  startSpectate: (map: string) => Promise<SpectateLaunchResult>;
   toast: string | null;
   showToast: (msg: string) => void;
 };
@@ -153,45 +138,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [updateInfo, setUpdateInfo] = useState<Store["updateInfo"]>(null);
   const [controllerUpdate, setControllerUpdate] = useState<Store["updateInfo"]>(null);
   const [updateChecking, setUpdateChecking] = useState(false);
-  const [gsiState, setGsiState] = useState<GsiState | null>(null);
-  const [gsiAlive, setGsiAlive] = useState(0);
   const toastTimer = useRef<number | undefined>(undefined);
 
   const reportError = useCallback((msg: string) => setError(msg), []);
   const clearError = useCallback(() => setError(null), []);
-
-  // Live GSI stream from the main process (both main window & overlay).
-  useEffect(() => {
-    const unsub = window.controller.onGsiState((s) => {
-      setGsiState(s);
-      if (s.allplayers) {
-        const alive = Object.values(s.allplayers).filter((p) => (p.state?.health ?? 0) > 0).length;
-        setGsiAlive(alive);
-      }
-    });
-    window.controller.spectateState().then((s) => s && setGsiState(s)).catch(() => undefined);
-    return unsub;
-  }, []);
-
-  const overlayPatch = useCallback(async (patch: Partial<SpectateConfig>) => {
-    try {
-      await window.controller.overlaySet(patch);
-    } catch (e) {
-      reportError(e instanceof Error ? e.message : String(e));
-    }
-  }, [reportError]);
-
-  const startSpectate = useCallback(
-    async (map: string): Promise<SpectateLaunchResult> => {
-      try {
-        return await window.controller.spectateStart(map);
-      } catch (e) {
-        reportError(e instanceof Error ? e.message : String(e));
-        return { launched: false, map };
-      }
-    },
-    [reportError]
-  );
 
   const checkUpdate = useCallback(async (force = false) => {
     setUpdateChecking(true);
@@ -498,10 +448,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     exportData,
     importData,
     launch,
-    gsiState,
-    gsiAlive,
-    overlayPatch,
-    startSpectate,
     toast,
     showToast,
   };
