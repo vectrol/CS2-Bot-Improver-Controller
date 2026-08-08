@@ -40,6 +40,11 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && view !== "home") setView("home");
+      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+        if (e.key === "1") setView("home");
+        else if (e.key === "2") setView("commands");
+        else if (e.key === "3") setView("settings");
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -93,10 +98,12 @@ export default function App() {
 
       <main className="shell__body">
         {!ready ? (
-          <div className="page" style={{ alignItems: "center", justifyContent: "center" }}>
-            <div className="pill pill--accent" style={{ fontSize: 13, padding: "10px 18px" }}>
-              <Crosshair size={14} className="dot--pulse" style={{ color: "var(--accent)" }} />
-              加载中…
+          <div className="page" style={{ alignItems: "center", justifyContent: "center", gap: 16 }}>
+            <div className="boot-logo">
+              <Crosshair size={26} strokeWidth={2.2} />
+            </div>
+            <div className="pill pill--accent" style={{ fontSize: 12, padding: "8px 16px" }}>
+              {t("common.loading")}…
             </div>
           </div>
         ) : view === "commands" ? (
@@ -111,9 +118,13 @@ export default function App() {
         )}
       </main>
 
-      <div className={`toast ${toast ? "toast--show" : ""}`}>
-        {toast && <span style={{ color: "var(--accent)" }}>✓</span>}
-        {toast}
+      <div className={`toast toast--${toast?.type ?? "success"} ${toast ? "toast--show" : ""}`}>
+        {toast && (
+          <span style={{ color: toast.type === "success" ? "var(--green)" : "var(--red)" }}>
+            {toast.type === "success" ? "✓" : "!"}
+          </span>
+        )}
+        {toast?.msg}
       </div>
 
       <ErrorModal message={error} onClose={clearError} />

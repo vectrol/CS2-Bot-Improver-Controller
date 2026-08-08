@@ -16,6 +16,7 @@ import type {
   DirectoryInfo,
   DropKnivesState,
   FilesReport,
+  LogEntry,
   ModeInfo,
   PresetsState,
   AimValue,
@@ -25,6 +26,9 @@ declare global {
   interface Window {
     controller: {
       version: () => Promise<{ controller: string; plugin: string }>;
+      logGet: () => Promise<LogEntry[]>;
+      logClear: () => Promise<void>;
+      winTopmost: (on: boolean) => Promise<boolean>;
       checkUpdate: (force?: boolean) => Promise<Store["updateInfo"]>;
       cachedUpdate: () => Promise<Store["updateInfo"] | null>;
       checkControllerUpdate: (force?: boolean) => Promise<Store["updateInfo"]>;
@@ -108,8 +112,8 @@ type Store = {
   exportData: () => Promise<boolean>;
   importData: () => Promise<boolean>;
   launch: () => Promise<{ launched: boolean; error?: string }>;
-  toast: string | null;
-  showToast: (msg: string) => void;
+  toast: { msg: string; type: "success" | "error" } | null;
+  showToast: (msg: string, type?: "success" | "error") => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -133,7 +137,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [cs2Running, setCs2Running] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installProgress, setInstallProgress] = useState<Store["installProgress"]>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updateInfo, setUpdateInfo] = useState<Store["updateInfo"]>(null);
   const [controllerUpdate, setControllerUpdate] = useState<Store["updateInfo"]>(null);
@@ -142,6 +146,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const reportError = useCallback((msg: string) => setError(msg), []);
   const clearError = useCallback(() => setError(null), []);
+
+  const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
+    setToast({ msg, type });
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2200);
+  }, []);
 
   const checkUpdate = useCallback(async (force = false) => {
     setUpdateChecking(true);
@@ -167,12 +177,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     } finally {
       setUpdateChecking(false);
     }
-  }, []);
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), 2200);
   }, []);
 
   /** setState only when the value actually changed — avoids useless re-renders. */

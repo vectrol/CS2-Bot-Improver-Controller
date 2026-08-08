@@ -34,6 +34,7 @@ import {
 } from "./launch";
 import { PLUGIN_VERSION } from "../shared/types";
 import { checkPluginUpdate, checkControllerUpdate, getCachedPluginUpdate, getCachedControllerUpdate } from "./updates";
+import { getLog, clearLog, logAction } from "./log";
 
 let win: BrowserWindow | null = null;
 
@@ -85,6 +86,7 @@ function createWindow(): void {
   win.on("move", persistBounds);
 
   win.once("ready-to-show", () => win?.show());
+  if (getConfig().appearance?.topmost) win.setAlwaysOnTop(true, "screen-saver");
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
@@ -101,6 +103,13 @@ function currentCsgo(): string | null {
 
 function registerIpc(): void {
   ipcMain.handle("app:version", () => ({ controller: app.getVersion(), plugin: PLUGIN_VERSION }));
+
+  ipcMain.handle("log:get", () => getLog());
+  ipcMain.handle("log:clear", () => clearLog());
+  ipcMain.handle("win:topmost", (_e, on: boolean) => {
+    win?.setAlwaysOnTop(on, "screen-saver");
+    return on;
+  });
 
   ipcMain.handle("updates:check", (_e, force?: boolean) => checkPluginUpdate(!!force));
   ipcMain.handle("updates:cached", () => getCachedPluginUpdate());
@@ -155,6 +164,9 @@ function registerIpc(): void {
       setMode(csgo, "bots");
       await setLaunchOptions(true);
       saveConfig({ mode: "bots", difficulty: "Medium", csgoPath: csgo });
+      logAction("install", `ok, ${result.filesWritten} files`);
+    } else {
+      logAction("install_fail", result.message ?? "failed");
     }
     return result;
   });
@@ -168,6 +180,9 @@ function registerIpc(): void {
     if (result.ok) {
       await setLaunchOptions(false);
       saveConfig({ mode: "online" });
+      logAction("uninstall", `ok, ${result.removed} files removed`);
+    } else {
+      logAction("uninstall_fail", result.message ?? "failed");
     }
     return result;
   });
@@ -191,6 +206,7 @@ function registerIpc(): void {
     await setLaunchOptions(mode === "bots");
     const lo = await getLaunchOptions();
     saveConfig({ mode });
+    logAction("mode", mode);
     return { ...info, insecure: lo.insecure, pending: info.cs2Running };
   });
 
@@ -203,6 +219,7 @@ function registerIpc(): void {
     if (!csgo) throw new Error("csgo directory not set");
     const info = setDifficulty(csgo, level);
     saveConfig({ difficulty: level });
+    logAction("difficulty", level);
     return info;
   });
 
@@ -218,6 +235,7 @@ function registerIpc(): void {
       botSkins: item === "skins" ? on : getConfig().botSkins,
       botProfiles: item === "profiles" ? on : getConfig().botProfiles,
     });
+    logAction("botItem", `${item}=${on ? "on" : "off"}`);
     return info;
   });
 
@@ -230,6 +248,7 @@ function registerIpc(): void {
     if (!csgo) throw new Error("csgo directory not set");
     const info = setAim(csgo, value);
     saveConfig({ aim: value });
+    logAction("aim", value);
     return info;
   });
   ipcMain.handle("presets:setNades", (_e, value: string) => {
@@ -237,6 +256,7 @@ function registerIpc(): void {
     if (!csgo) throw new Error("csgo directory not set");
     const info = setNades(csgo, value as Parameters<typeof setNades>[1]);
     saveConfig({ nades: value as Parameters<typeof saveConfig>[0]["nades"] });
+    logAction("nades", value);
     return info;
   });
 
@@ -249,11 +269,17 @@ function registerIpc(): void {
     if (!csgo) throw new Error("csgo directory not set");
     const info = setDropKnives(csgo, bindKey, selected);
     saveConfig({ dropKnifeBind: bindKey, dropKnifeSubclasses: selected });
+    logAction("knives", `${bindKey}: ${selected.length} types`);
     return info;
   });
 
   ipcMain.handle("cs2:running", () => isCs2Running());
-  ipcMain.handle("cs2:launch", async () => launchCs2());
+  ipcMain.handle("cs2:launch", async () => {
+    const result = await launchCs2();
+    if (result.launched) logAction("launch", "ok");
+    else if (result.error) logAction("launch_fail", result.error);
+    return result;
+  });
   ipcMain.handle("cs2:reconcile", async () => reconcileLaunchOptions());
 
   ipcMain.handle("launch:options", async () => {
@@ -263,6 +289,7 @@ function registerIpc(): void {
   ipcMain.handle("launch:options:set", async (_e, custom: string) => {
     saveConfig({ launchOptions: custom.trim() });
     await setLaunchOptions(getConfig().mode === "bots");
+    logAction("options", custom.trim() || "(empty)");
     return getLaunchOptions(true);
   });
 
@@ -275,6 +302,7 @@ function registerIpc(): void {
     if (!file) return false;
     try {
       writeFileSync(file, payload, "utf-8");
+      logAction("export", file);
       return true;
     } catch {
       return false;
@@ -288,7 +316,9 @@ function registerIpc(): void {
     });
     if (!file || file.length === 0) return null;
     try {
-      return readFileSync(file[0], "utf-8");
+      const raw = readFileSync(file[0], "utf-8");
+      logAction("import", file[0]);
+      return raw;
     } catch {
       return null;
     }

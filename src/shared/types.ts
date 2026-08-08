@@ -13,6 +13,13 @@ export type NadesValue = "max" | "more" | "normal" | "less" | "off";
 export type AppearanceConfig = {
   accent: string;
   compact: boolean;
+  topmost: boolean;
+};
+
+export type LogEntry = {
+  time: number;
+  action: string;
+  detail?: string;
 };
 
 export type AppConfig = {

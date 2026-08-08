@@ -78,7 +78,7 @@ export default function HomePage({
       if (!result.ok) {
         store.reportError(result.message ?? "install failed");
       } else {
-        store.showToast("✓ 安装完成");
+        store.showToast(`✓ ${t("install.done")}`);
       }
     } catch (e) {
       store.reportError(e instanceof Error ? e.message : String(e));
@@ -326,7 +326,7 @@ export default function HomePage({
           {installed && mode?.insecure && (
             <div className="hint" style={{ marginBottom: 10 }}>
               <span className="pill pill--accent">
-                <Terminal size={11} /> -insecure 已启用
+                <Terminal size={11} /> {t("mode.insecureOn")}
               </span>
             </div>
           )}

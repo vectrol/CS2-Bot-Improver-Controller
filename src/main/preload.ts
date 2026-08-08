@@ -1,8 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AppConfig } from "../shared/types";
+import type { AppConfig, LogEntry } from "../shared/types";
 
 const api = {
   version: () => ipcRenderer.invoke("app:version") as Promise<{ controller: string; plugin: string }>,
+  logGet: () => ipcRenderer.invoke("log:get") as Promise<LogEntry[]>,
+  logClear: () => ipcRenderer.invoke("log:clear") as Promise<void>,
+  winTopmost: (on: boolean) => ipcRenderer.invoke("win:topmost", on) as Promise<boolean>,
   checkUpdate: (force?: boolean) => ipcRenderer.invoke("updates:check", force),
   cachedUpdate: () => ipcRenderer.invoke("updates:cached"),
   checkControllerUpdate: (force?: boolean) => ipcRenderer.invoke("updates:controller", force),

@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  writeFileSync,
   rmSync,
   readdirSync,
   rmdirSync,
@@ -169,29 +170,81 @@ export async function installPackage(
   const total = files.length;
   if (total === 0) return { ok: false, filesWritten: 0, message: "empty package" };
 
+  // Snapshot what already exists so a failed install can roll back cleanly.
+  const preexisting = new Set(files.filter((n) => existsSync(join(csgo, n))));
+
   onProgress({ phase: "prepare", current: 0, total, file: "" });
 
-  const written = await extractAll(zipPath, csgo, files, onProgress);
-
-  try {
-    const commands = bundledCommandsPath();
-    if (existsSync(commands)) {
-      const text = readFileSync(commands, "utf-8");
-      const target = join(csgo, "Commands.txt");
-      const existing = existsSync(target) ? readFileSync(target, "utf-8") : "";
-      if (existing !== text) {
-        const fs = await import("node:fs");
-        fs.writeFileSync(target, text, "utf-8");
-        written.filesWritten += 1;
+  const rollback = () => {
+    for (const n of files) {
+      if (preexisting.has(n)) continue;
+      try {
+        rmSync(join(csgo, n), { force: true });
+      } catch {
+        /* ignore */
       }
     }
-  } catch {
-    /* best-effort commands copy */
-  }
+    pruneEmptyDirs(csgo);
+  };
 
-  onProgress({ phase: "finalize", current: total, total, file: "" });
-  onProgress({ phase: "done", current: total, total, file: "" });
-  return { ok: true, filesWritten: written.filesWritten };
+  try {
+    const written = await extractAll(zipPath, csgo, files, onProgress);
+
+    try {
+      const commands = bundledCommandsPath();
+      if (existsSync(commands)) {
+        const text = readFileSync(commands, "utf-8");
+        const target = join(csgo, "Commands.txt");
+        const existing = existsSync(target) ? readFileSync(target, "utf-8") : "";
+        if (existing !== text) {
+          writeFileSync(target, text, "utf-8");
+          written.filesWritten += 1;
+        }
+      }
+    } catch {
+      /* best-effort commands copy */
+    }
+
+    onProgress({ phase: "finalize", current: total, total, file: "" });
+    onProgress({ phase: "done", current: total, total, file: "" });
+    return { ok: true, filesWritten: written.filesWritten };
+  } catch (e) {
+    rollback();
+    onProgress({ phase: "error", current: 0, total, file: "" });
+    return {
+      ok: false,
+      filesWritten: 0,
+      message: e instanceof Error ? `install failed (rolled back): ${e.message}` : "install failed (rolled back)",
+    };
+  }
+}
+
+function pruneEmptyDirs(csgo: string): void {
+  const stack = [csgo];
+  while (stack.length > 0) {
+    const cur = stack.pop()!;
+    let entries: string[] = [];
+    try {
+      entries = readdirSync(cur);
+    } catch {
+      continue;
+    }
+    const subdirs = entries.filter((n) => {
+      try {
+        return statSync(join(cur, n)).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+    for (const d of subdirs) stack.push(join(cur, d));
+    if (subdirs.length === entries.length && cur !== csgo) {
+      try {
+        rmdirSync(cur);
+      } catch {
+        /* busy */
+      }
+    }
+  }
 }
 
 function extractAll(
@@ -206,7 +259,6 @@ function extractAll(
     yauzl.open(zipPath, { lazyEntries: true }, (err, zip) => {
       if (err || !zip) return reject(err ?? new Error("zip open failed"));
       let written = 0;
-      let failures = 0;
       zip.readEntry();
       const next = () => {
         try {
@@ -223,10 +275,9 @@ function extractAll(
             onProgress({ phase: "extract", current: written, total, file: entry.fileName });
             next();
           })
-          .catch(() => {
-            failures += 1;
-            written += 1;
-            next();
+          .catch((err) => {
+            // Fail fast so installPackage can roll back this run.
+            reject(err instanceof Error ? err : new Error(String(err)));
           });
       });
       zip.on("end", () => resolve({ filesWritten: written }));

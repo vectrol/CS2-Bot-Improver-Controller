@@ -17,10 +17,39 @@ import {
   Upload,
   Terminal,
   Database,
+  History,
 } from "lucide-react";
 import { useI18n, type Lang } from "../i18n";
 import { useStore } from "../state/store";
 import { ACCENT_PRESETS, isValidHex } from "../lib/theme";
+import type { LogEntry } from "../../../shared/types";
+
+const LOG_LABELS: Record<string, string> = {
+  install: "log.install",
+  install_fail: "log.installFail",
+  uninstall: "log.uninstall",
+  uninstall_fail: "log.uninstallFail",
+  mode: "log.mode",
+  difficulty: "log.difficulty",
+  botItem: "log.botItem",
+  aim: "log.aim",
+  nades: "log.nades",
+  knives: "log.knives",
+  launch: "log.launch",
+  launch_fail: "log.launchFail",
+  options: "log.options",
+  export: "log.export",
+  import: "log.import",
+};
+
+function logLabel(action: string): string {
+  return LOG_LABELS[action] ?? action;
+}
+
+function fmtLogTime(ts: number): string {
+  const d = new Date(ts);
+  return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+}
 
 const KNIFE_SUBCLASSES: Record<number, string> = {
   500: "Bayonet",
@@ -70,6 +99,7 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
   const [launchOptions, setLaunchOptions] = useState("");
   const [launchSaving, setLaunchSaving] = useState(false);
   const [integrity, setIntegrity] = useState<"checking" | "ok" | "fail">("checking");
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
   useEffect(() => {
     window.controller.version().then((v) => setControllerVersion(v.controller));
@@ -80,6 +110,7 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
       .packageVerify()
       .then((r) => setIntegrity(r.ok ? "ok" : "fail"))
       .catch(() => setIntegrity("fail"));
+    window.controller.logGet().then(setLogs).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -446,6 +477,22 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
               }
             />
           </div>
+          <div className="setting-row">
+            <div className="setting-row__info">
+              <div className="setting-row__title">{t("appearance.topmost")}</div>
+              <div className="setting-row__desc">{t("appearance.topmostDesc")}</div>
+            </div>
+            <button
+              className={`toggle ${config?.appearance?.topmost ? "toggle--on" : ""}`}
+              onClick={() => {
+                const on = !config?.appearance?.topmost;
+                window.controller.winTopmost(on);
+                store.updateConfig({
+                  appearance: { ...config!.appearance, topmost: on },
+                });
+              }}
+            />
+          </div>
         </div>
 
         <div className="card">
@@ -504,6 +551,42 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
               {t("data.import")}
             </button>
           </div>
+        </div>
+
+        <div className="card">
+          <div className="card__title" style={{ marginBottom: 8 }}>
+            <div className="card__icon">
+              <History size={14} />
+            </div>
+            {t("log.title")}
+          </div>
+          <div className="hint" style={{ marginBottom: 10 }}>{t("log.desc")}</div>
+          <div className="log-list">
+            {logs.length === 0 && <div className="hint">{t("log.empty")}</div>}
+            {logs.map((entry, i) => (
+              <div key={i} className="log-row">
+                <span className="log-row__time">{fmtLogTime(entry.time)}</span>
+                <span className="log-row__action">
+                  {t(logLabel(entry.action))}
+                  {entry.detail && <span className="log-row__detail"> · {entry.detail}</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+          {logs.length > 0 && (
+            <button
+              className="btn btn--ghost btn--sm"
+              style={{ marginTop: 10 }}
+              onClick={async () => {
+                await window.controller.logClear();
+                setLogs([]);
+                store.showToast(`✓ ${t("log.cleared")}`);
+              }}
+            >
+              <Trash2 size={13} />
+              {t("log.clear")}
+            </button>
+          )}
         </div>
 
         <div className="card">

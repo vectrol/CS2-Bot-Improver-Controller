@@ -14,3 +14,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </I18nProvider>
   </React.StrictMode>
 );
+
+// Remove the static splash once the app shell has mounted.
+requestAnimationFrame(() => {
+  const splash = document.getElementById("splash");
+  if (splash) {
+    splash.classList.add("splash--out");
+    setTimeout(() => splash.remove(), 350);
+  }
+});

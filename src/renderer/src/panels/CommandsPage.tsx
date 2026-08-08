@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ChevronLeft,
   Search,
@@ -87,9 +87,11 @@ export default function CommandsPage({ onBack }: { onBack: () => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editText, setEditText] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     window.controller.commandsLoad().then(setBlocks).catch(() => setBlocks([]));
+    searchRef.current?.focus();
   }, []);
 
   const sections = useMemo(
@@ -213,6 +215,7 @@ export default function CommandsPage({ onBack }: { onBack: () => void }) {
       <div className="search">
         <Search size={14} />
         <input
+          ref={searchRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("commands.search")}
@@ -425,7 +428,7 @@ export default function CommandsPage({ onBack }: { onBack: () => void }) {
         );
       })}
 
-      <div className="footer-note">CBIC · Commands.txt · 点击命令即可复制</div>
+      <div className="footer-note">CBIC · Commands.txt · {t("commands.footerHint")}</div>
     </div>
   );
 }
