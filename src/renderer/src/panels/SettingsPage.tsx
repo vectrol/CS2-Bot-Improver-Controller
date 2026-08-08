@@ -69,9 +69,17 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
   const [launchInput, setLaunchInput] = useState("");
   const [launchOptions, setLaunchOptions] = useState("");
   const [launchSaving, setLaunchSaving] = useState(false);
+  const [integrity, setIntegrity] = useState<"checking" | "ok" | "fail">("checking");
 
   useEffect(() => {
     window.controller.version().then((v) => setControllerVersion(v.controller));
+  }, []);
+
+  useEffect(() => {
+    window.controller
+      .packageVerify()
+      .then((r) => setIntegrity(r.ok ? "ok" : "fail"))
+      .catch(() => setIntegrity("fail"));
   }, []);
 
   useEffect(() => {
@@ -97,7 +105,12 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     if (!config?.language) return;
-    const l: Lang = config.language === "en" ? "en" : "zh-CN";
+    const l: Lang =
+      config.language === "zh-Hant"
+        ? "zh-Hant"
+        : config.language === "en"
+          ? "en"
+          : "zh-CN";
     if (l !== lang) setLang(l);
   }, [config?.language, lang, setLang]);
 
@@ -178,7 +191,7 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
             </div>
             {t("settings.language")}
           </div>
-          <div className="segmented" style={{ maxWidth: 260 }}>
+          <div className="segmented" style={{ maxWidth: 380 }}>
             <button
               className={`segmented__item ${lang === "zh-CN" ? "segmented__item--active" : ""}`}
               onClick={() => {
@@ -187,6 +200,15 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
               }}
             >
               简体中文
+            </button>
+            <button
+              className={`segmented__item ${lang === "zh-Hant" ? "segmented__item--active" : ""}`}
+              onClick={() => {
+                setLang("zh-Hant");
+                store.updateConfig({ language: "zh-Hant" });
+              }}
+            >
+              繁體中文
             </button>
             <button
               className={`segmented__item ${lang === "en" ? "segmented__item--active" : ""}`}
@@ -521,7 +543,7 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
           <div className="hint" style={{ margin: "4px 0 12px" }}>
             {t("settings.aboutDesc")}
           </div>
-          <div className="row">
+          <div className="row" style={{ marginTop: 10, flexWrap: "wrap" }}>
             <button
               className="btn btn--ghost btn--sm"
               onClick={() =>
@@ -531,7 +553,21 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
               <Github size={13} />
               {t("settings.openSource")}
             </button>
-            <span className="pill pill--accent" style={{ marginLeft: "auto" }}>
+            <span
+              className="pill"
+              style={{
+                marginLeft: "auto",
+                color: integrity === "ok" ? "var(--green)" : integrity === "fail" ? "var(--red)" : undefined,
+              }}
+            >
+              <ShieldCheck size={11} />
+              {integrity === "ok"
+                ? t("integrity.ok")
+                : integrity === "fail"
+                  ? t("integrity.fail")
+                  : t("integrity.checking")}
+            </span>
+            <span className="pill pill--accent">
               <UserRound size={11} /> CBIC v{controllerVersion}
             </span>
           </div>

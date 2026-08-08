@@ -8,6 +8,7 @@ import {
   uninstallPackage,
   packageAvailable,
   driftFiles,
+  verifyBundle,
 } from "./install";
 import { loadCommandBlocks } from "./commands";
 import {
@@ -140,6 +141,7 @@ function registerIpc(): void {
   });
 
   ipcMain.handle("package:available", () => packageAvailable());
+  ipcMain.handle("package:verify", () => verifyBundle(true));
   ipcMain.handle("package:install", async () => {
     const csgo = currentCsgo();
     if (!csgo) throw new Error("csgo directory not set");

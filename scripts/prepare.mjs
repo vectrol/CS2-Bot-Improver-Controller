@@ -1,4 +1,5 @@
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,5 +32,23 @@ for (const s of sources) {
   } else {
     console.warn(`[prepare] not found (optional): ${s.from}`);
   }
+}
+
+// ---- integrity manifest (sha256 of the bundled package) ----
+const zipPath = join(resources, "CS2BotImprover.zip");
+if (existsSync(zipPath)) {
+  const data = readFileSync(zipPath);
+  const sha256 = createHash("sha256").update(data).digest("hex");
+  const manifest = {
+    pluginVersion: "1.4.3",
+    sha256,
+    size: statSync(zipPath).size,
+    generatedAt: new Date().toISOString(),
+  };
+  writeFileSync(join(resources, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+  console.log(`[prepare] manifest sha256=${sha256.slice(0, 16)}...`);
+} else {
+  console.error("[prepare] MISSING bundled zip for manifest");
+  process.exit(1);
 }
 console.log("[prepare] done");

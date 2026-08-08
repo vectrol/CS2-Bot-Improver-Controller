@@ -46,6 +46,19 @@ app.whenReady().then(async () => {
   controls.setMode(csgo, "online");
   const uninst = await install.uninstallPackage(csgo);
   console.log("UNINSTALL:", JSON.stringify(uninst));
+
+  // ---- integrity manifest check ----
+  const verify = install.verifyBundle(true);
+  console.log(
+    `INTEGRITY: ok=${verify.ok} expected=${verify.expected.slice(0, 12)}... actual=${verify.actual.slice(0, 12)}...`
+  );
+  const manifest = install.readManifest();
+  if (!manifest || manifest.sha256.length !== 64 || !verify.ok || verify.expected !== verify.actual) {
+    console.log("FAIL  bundle sha256 integrity");
+    fails++;
+  } else {
+    console.log("PASS  bundle sha256 integrity");
+  }
   const unChecks = [
     ["gameinfo.gi kept & vanilla", () => {
       try {

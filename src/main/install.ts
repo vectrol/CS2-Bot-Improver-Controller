@@ -9,11 +9,57 @@ import {
   rmdirSync,
   statSync,
 } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import yauzl from "yauzl";
 import type { InstallEvent, InstallResult, UninstallResult } from "../shared/types";
 
 const EXCLUDED = /^Panel v[\d.]+\.exe$/i;
+
+export type BundleManifest = {
+  pluginVersion: string;
+  sha256: string;
+  size: number;
+  generatedAt?: string;
+};
+
+let verifyCache: { at: number; ok: boolean } | null = null;
+const VERIFY_CACHE_MS = 5 * 60 * 1000;
+
+export function manifestPath(): string {
+  if (app.isPackaged) return join(process.resourcesPath, "plugin", "manifest.json");
+  return join(__dirname, "..", "..", "resources", "manifest.json");
+}
+
+export function readManifest(): BundleManifest | null {
+  try {
+    return JSON.parse(readFileSync(manifestPath(), "utf-8")) as BundleManifest;
+  } catch {
+    return null;
+  }
+}
+
+/** Verify the bundled package against the build-time sha256 manifest. */
+export function verifyBundle(force = false): { ok: boolean; expected: string; actual: string } {
+  const now = Date.now();
+  if (!force && verifyCache && now - verifyCache.at < VERIFY_CACHE_MS) {
+    return verifyCache.ok
+      ? { ok: true, expected: "", actual: "" }
+      : { ok: false, expected: "", actual: "" };
+  }
+  const manifest = readManifest();
+  const zipPath = bundledZipPath();
+  const expected = manifest?.sha256 ?? "";
+  let actual = "";
+  if (expected && existsSync(zipPath)) {
+    const hash = createHash("sha256");
+    hash.update(readFileSync(zipPath));
+    actual = hash.digest("hex");
+  }
+  const ok = expected !== "" && actual === expected;
+  verifyCache = { at: now, ok };
+  return { ok, expected, actual };
+}
 
 export function bundledZipPath(): string {
   if (app.isPackaged) {
@@ -110,6 +156,10 @@ export async function installPackage(
   const zipPath = bundledZipPath();
   if (!existsSync(zipPath)) {
     return { ok: false, filesWritten: 0, message: "bundled package missing" };
+  }
+  const integrity = verifyBundle(true);
+  if (!integrity.ok) {
+    return { ok: false, filesWritten: 0, message: "bundle corrupt" };
   }
 
   const names = await cachedEntries(zipPath);

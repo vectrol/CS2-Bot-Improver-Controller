@@ -12,6 +12,7 @@ const api = {
   selectDir: () => ipcRenderer.invoke("dir:select"),
   validateFiles: () => ipcRenderer.invoke("files:validate"),
   packageAvailable: () => ipcRenderer.invoke("package:available") as Promise<boolean>,
+  packageVerify: () => ipcRenderer.invoke("package:verify"),
   installPackage: () => ipcRenderer.invoke("package:install"),
   uninstallPackage: () => ipcRenderer.invoke("package:uninstall"),
   onInstallProgress: (cb: (ev: unknown) => void) => {

@@ -24,8 +24,9 @@ export default function App() {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
-    if (config?.language && (config.language === "zh-CN" || config.language === "en")) {
-      setLang(config.language);
+    if (config?.language) {
+      const l = config.language;
+      if (l === "zh-CN" || l === "zh-Hant" || l === "en") setLang(l);
     }
   }, [config?.language, setLang]);
 

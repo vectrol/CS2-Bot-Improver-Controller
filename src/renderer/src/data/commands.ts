@@ -41,6 +41,7 @@ export const COMMAND_DESCS: Record<string, { zh: string; en: string }> = {
 
 export function sectionLabel(meta: SectionMeta | undefined, section: string, lang: Lang): string {
   if (!meta) return section;
+  if (lang === "zh-Hant") return meta.zh;
   return lang === "zh-CN" ? meta.zh : meta.en;
 }
 
@@ -49,21 +50,21 @@ export function descFor(lines: string[], lang: Lang): string | null {
   const probe = lines[0]?.trim();
   if (!probe) return null;
   const exact = COMMAND_DESCS[probe];
-  if (exact) return lang === "zh-CN" ? exact.zh : exact.en;
+  if (exact) return lang === "en" ? exact.en : exact.zh;
   if (lines.length === 2) {
     const ct = lines[0].includes("bot_add_ct") && lines[1].includes("bot_add_t");
     if (ct) {
-      return lang === "zh-CN"
-        ? "CT 与 T 侧阵容各一行，一键复制即可在控制台粘贴"
-        : "One line per side (CT/T) — copy and paste into the console";
+      return lang === "en"
+        ? "One line per side (CT/T) — copy and paste into the console"
+        : "CT 与 T 侧阵容各一行，一键复制即可在控制台粘贴";
     }
   }
   const prefix = probe.split(" ")[0];
   if (prefix === "bot_aim" && lines.length > 1) {
-    return lang === "zh-CN" ? "选择瞄准风格" : "Pick an aim style";
+    return lang === "en" ? "Pick an aim style" : "选择瞄准风格";
   }
   if (prefix === "bot_nades" && lines.length > 1) {
-    return lang === "zh-CN" ? "选择投掷物频率" : "Pick nade frequency";
+    return lang === "en" ? "Pick nade frequency" : "选择投掷物频率";
   }
   return null;
 }

@@ -34,6 +34,7 @@ declare global {
       selectDir: () => Promise<DirectoryInfo>;
       validateFiles: () => Promise<FilesReport | null>;
       packageAvailable: () => Promise<boolean>;
+      packageVerify: () => Promise<{ ok: boolean; expected: string; actual: string }>;
       installPackage: () => Promise<{ ok: boolean; filesWritten: number; message?: string }>;
       uninstallPackage: () => Promise<{ ok: boolean; removed: number; message?: string }>;
       onInstallProgress: (cb: (ev: any) => void) => () => void;

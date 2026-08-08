@@ -1155,6 +1155,19 @@ body.compact .stack {
   gap: 10px;
 }
 
+/* ---------- quick actions ---------- */
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.quick-chip {
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  font-weight: 600;
+}
+
 /* ---------- misc ---------- */
 .divider {
   height: 1px;

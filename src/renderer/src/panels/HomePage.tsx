@@ -13,6 +13,13 @@ import {
   AlertTriangle,
   Gamepad2,
   Terminal,
+  Zap,
+  Rocket as FlyIcon,
+  RotateCcw,
+  Dices,
+  UserX,
+  UserPlus,
+  type LucideIcon,
 } from "lucide-react";
 import { useI18n } from "../i18n";
 import { useStore } from "../state/store";
@@ -22,6 +29,15 @@ const DIFF_LEVELS = [
   { key: "Medium", icon: "medium" },
   { key: "High", icon: "high" },
 ] as const;
+
+const QUICK_ACTIONS: { cmd: string; icon: LucideIcon; label: string }[] = [
+  { cmd: "scouts_on", icon: FlyIcon, label: "quick.scoutsOn" },
+  { cmd: "scouts_off", icon: FlyIcon, label: "quick.scoutsOff" },
+  { cmd: "mp_restartgame 1", icon: RotateCcw, label: "quick.restart" },
+  { cmd: "br_reroll", icon: Dices, label: "quick.reroll" },
+  { cmd: "bot_kick", icon: UserX, label: "quick.kickBots" },
+  { cmd: "bot_add", icon: UserPlus, label: "quick.addBot" },
+];
 
 export default function HomePage({
   onOpenCommands,
@@ -93,6 +109,18 @@ export default function HomePage({
       setLaunching(false);
     }
   }, [installed, store, t]);
+
+  const copyQuick = useCallback(
+    async (cmd: string) => {
+      try {
+        await navigator.clipboard.writeText(cmd);
+        store.showToast(`✓ ${t("commands.copied")}`);
+      } catch {
+        /* ignore */
+      }
+    },
+    [store, t]
+  );
 
   const headerStatus =
     !installed
@@ -317,6 +345,30 @@ export default function HomePage({
               {t("mode.needInstall")}
             </div>
           )}
+        </div>
+
+        <div className="card">
+          <div className="card__head">
+            <div className="card__title">
+              <div className="card__icon">
+                <Zap size={15} />
+              </div>
+              {t("quick.title")}
+            </div>
+            <span className="hint">{t("quick.hint")}</span>
+          </div>
+          <div className="quick-grid">
+            {QUICK_ACTIONS.map(({ cmd, icon: Qi, label }) => (
+              <button
+                key={cmd}
+                className="chip quick-chip"
+                onClick={() => copyQuick(cmd)}
+              >
+                <Qi size={12} />
+                {t(label)}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="card">
