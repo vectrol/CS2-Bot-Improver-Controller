@@ -1,0 +1,23 @@
+appId: com.cs2botimprover.controller
+productName: CS2-Bot-Improver-Controller
+directories:
+  output: release
+files:
+  - out/**/*
+  - dist/**/*
+  - package.json
+extraResources:
+  - from: resources
+    to: plugin
+    filter:
+      - "**/*"
+win:
+  target:
+    - nsis
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/

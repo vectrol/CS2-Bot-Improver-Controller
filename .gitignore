@@ -1,0 +1,9 @@
+node_modules/
+out/
+dist/
+release/
+resources/CS2BotImprover.zip
+resources/Commands.txt
+build/ui-home.png
+*.log
+.DS_Store

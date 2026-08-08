@@ -1,0 +1,301 @@
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+
+export type Lang = "zh-CN" | "en";
+
+const dict = {
+  "zh-CN": {
+    app: { name: "CS2-Bot-Improver-Controller", tagline: "CBIC · 插件整合包 v1.4.3 · 一键安装与管理" },
+    titlebar: { commands: "命令", settings: "设置", back: "返回" },
+    home: {
+      statusOk: "一切正常",
+      statusRestart: "重启 CS2 后生效",
+      statusMissing: "文件缺失",
+      statusNotInstalled: "未安装",
+      notInstalledDesc: "插件整合包尚未安装到 CS2",
+      cs2NotRunning: "CS2 未运行",
+      cs2Running: "CS2 运行中",
+      directory: "游戏目录",
+      change: "更改",
+      selectDir: "选择 game/csgo 目录",
+      noDir: "未找到 CS2 安装目录，请手动选择",
+    },
+    install: {
+      title: "一键安装插件整合包",
+      desc: "将 addons / cfg / overrides / gameinfo.gi 等文件安装到游戏目录，自动完成配置",
+      button: "一键安装",
+      reinstall: "重新安装",
+      installing: "正在安装",
+      phasePrepare: "准备中",
+      phaseExtract: "解压安装",
+      phaseFinalize: "收尾配置",
+      phaseDone: "完成",
+      phaseError: "失败",
+      files: "文件",
+      done: "安装完成",
+      doneDesc: "插件整合包已就绪，点击「启动 CS2」即可开始人机对战",
+      warning: "安装前请关闭 CS2",
+      pkgMissing: "内置安装包缺失",
+      ok: "已安装",
+    },
+    mode: {
+      title: "游戏模式",
+      bots: "人机模式",
+      botsDesc: "安装插件并加载增强 AI，支持离线人机对局",
+      online: "在线模式",
+      onlineDesc: "恢复官方匹配，移除插件加载",
+      launch: "启动 CS2",
+      launching: "已通过 Steam 启动",
+      pendingRestart: "重启 CS2 后生效",
+      needInstall: "请先安装插件整合包",
+      running: "CS2 正在运行",
+      steamNotRunning: "Steam 未运行，请先启动 Steam",
+    },
+    difficulty: {
+      title: "难度",
+      low: "简单",
+      medium: "中等",
+      high: "困难",
+      lowDesc: "基础 AI，适合新手",
+      mediumDesc: "按 HLTV 数据混合难度",
+      highDesc: "极限 AI，极具挑战",
+    },
+    botItems: {
+      title: "机器人项目",
+      skins: "皮肤外观",
+      skinsDesc: "机器人武器皮肤 / 手套 / 刀 / 音乐盒",
+      profiles: "Steam 资料",
+      profilesDesc: "隐藏机器人的 Steam 资料",
+    },
+    presets: {
+      title: "预设",
+      aim: "瞄准模式",
+      aimHead: "爆头",
+      aimMixed: "混合",
+      aimBody: "躯干",
+      nades: "投掷物频率",
+      nadesMax: "最多",
+      nadesMore: "更多",
+      nadesNormal: "正常",
+      nadesLess: "较少",
+      nadesOff: "关闭",
+    },
+    knives: {
+      title: "投掷刀具",
+      desc: "游戏内向地面按下「\\」键生成刀具，可自定义按键与刀型",
+      bind: "按键",
+      selected: "已选刀型",
+    },
+    commands: {
+      title: "命令浏览器",
+      search: "搜索命令或战队…",
+      copy: "复制",
+      copied: "已复制",
+      empty: "没有匹配的命令",
+      noFav: "暂无收藏，点击命令右侧的星标即可收藏",
+      all: "全部",
+      fav: "收藏",
+      items: "条指令",
+    },
+    settings: {
+      title: "设置",
+      language: "语言",
+      directory: "CS2 目录",
+      directoryDesc: "当前使用的游戏目录",
+      about: "关于",
+      aboutDesc: "CBIC (CS2-Bot-Improver-Controller) 基于 CS2-Bot-Improver v1.4.3 二次开发，AGPL-3.0 协议",
+      openSource: "查看上游项目",
+    },
+    uninstall: {
+      title: "卸载插件整合包",
+      desc: "恢复在线模式并删除所有插件文件（addons / cfg / overrides / backup）",
+      button: "卸载插件包",
+      confirm: "确定要卸载插件整合包吗？游戏将恢复为纯净在线模式。",
+      done: "已卸载",
+    },
+    update: {
+      title: "版本检查",
+      desc: "自动检查上游插件包与 CBIC 控制器的 GitHub Release",
+      checking: "检查中…",
+      upToDate: "已是最新 (v{current})",
+      found: "发现新版本",
+      newVersion: "上游已发布新版本",
+      download: "前往下载",
+      check: "检查更新",
+      failed: "检查失败（网络异常）",
+      current: "当前",
+      latest: "最新",
+      plugin: "插件整合包",
+      controller: "控制器 (CBIC)",
+      banner: "上游 CS2-Bot-Improver 已发布",
+      bannerController: "CBIC 控制器已发布新版本",
+    },
+    error: { title: "出错" },
+    common: { ok: "确定", cancel: "取消", close: "关闭" },
+  },
+  en: {
+    app: { name: "CS2-Bot-Improver-Controller", tagline: "CBIC · Plugin bundle v1.4.3 · One-click install & manage" },
+    titlebar: { commands: "Commands", settings: "Settings", back: "Back" },
+    home: {
+      statusOk: "All good",
+      statusRestart: "Restart CS2 to apply",
+      statusMissing: "Files missing",
+      statusNotInstalled: "Not installed",
+      notInstalledDesc: "Plugin bundle is not installed to CS2",
+      cs2NotRunning: "CS2 not running",
+      cs2Running: "CS2 running",
+      directory: "Game directory",
+      change: "Change",
+      selectDir: "Select game/csgo directory",
+      noDir: "CS2 install not found, please select manually",
+    },
+    install: {
+      title: "One-click install",
+      desc: "Installs addons / cfg / overrides / gameinfo.gi into the game directory and configures everything",
+      button: "Install",
+      reinstall: "Reinstall",
+      installing: "Installing",
+      phasePrepare: "Preparing",
+      phaseExtract: "Extracting",
+      phaseFinalize: "Finalizing",
+      phaseDone: "Done",
+      phaseError: "Failed",
+      files: "files",
+      done: "Install complete",
+      doneDesc: "Bundle ready — hit Launch CS2 to play vs bots",
+      warning: "Close CS2 before installing",
+      pkgMissing: "Bundled package missing",
+      ok: "Installed",
+    },
+    mode: {
+      title: "Game mode",
+      bots: "Bot mode",
+      botsDesc: "Loads plugins with enhanced AI for offline bot matches",
+      online: "Online mode",
+      onlineDesc: "Restore official matchmaking, plugins disabled",
+      launch: "Launch CS2",
+      launching: "Launched via Steam",
+      pendingRestart: "Restart CS2 to apply",
+      needInstall: "Install the bundle first",
+      running: "CS2 is running",
+      steamNotRunning: "Steam is not running — please start Steam first",
+    },
+    difficulty: {
+      title: "Difficulty",
+      low: "Low",
+      medium: "Medium",
+      high: "High",
+      lowDesc: "Basic AI, for beginners",
+      mediumDesc: "Mixed difficulty from HLTV stats",
+      highDesc: "Extreme AI, very challenging",
+    },
+    botItems: {
+      title: "Bot items",
+      skins: "Skins & cosmetics",
+      skinsDesc: "Bot weapon skins / gloves / knives / music kits",
+      profiles: "Steam profiles",
+      profilesDesc: "Hide bots' Steam profiles",
+    },
+    presets: {
+      title: "Presets",
+      aim: "Aim mode",
+      aimHead: "Head",
+      aimMixed: "Mixed",
+      aimBody: "Body",
+      nades: "Nade frequency",
+      nadesMax: "Max",
+      nadesMore: "More",
+      nadesNormal: "Normal",
+      nadesLess: "Less",
+      nadesOff: "Off",
+    },
+    knives: {
+      title: "Drop knives",
+      desc: "Press «\\» in game to spawn knives at the ground. Customize key and knife types",
+      bind: "Key",
+      selected: "Selected knives",
+    },
+    commands: {
+      title: "Command browser",
+      search: "Search commands or teams…",
+      copy: "Copy",
+      copied: "Copied",
+      empty: "No matching commands",
+      noFav: "No favorites yet — star a command to keep it here",
+      all: "All",
+      fav: "Favorites",
+      items: "items",
+    },
+    settings: {
+      title: "Settings",
+      language: "Language",
+      directory: "CS2 directory",
+      directoryDesc: "Active game directory",
+      about: "About",
+      aboutDesc: "CBIC (CS2-Bot-Improver-Controller), based on CS2-Bot-Improver v1.4.3, AGPL-3.0",
+      openSource: "View upstream project",
+    },
+    uninstall: {
+      title: "Uninstall plugin bundle",
+      desc: "Restore online mode and remove all plugin files (addons / cfg / overrides / backup)",
+      button: "Uninstall bundle",
+      confirm: "Uninstall the plugin bundle? The game will return to clean online mode.",
+      done: "Uninstalled",
+    },
+    update: {
+      title: "Version check",
+      desc: "Auto-checks upstream plugin bundle and CBIC controller GitHub releases",
+      checking: "Checking…",
+      upToDate: "Up to date (v{current})",
+      found: "New version found",
+      newVersion: "A new upstream version is available",
+      download: "Download",
+      check: "Check for updates",
+      failed: "Check failed (network error)",
+      current: "Current",
+      latest: "Latest",
+      plugin: "Plugin bundle",
+      controller: "Controller (CBIC)",
+      banner: "Upstream CS2-Bot-Improver released",
+      bannerController: "A new CBIC controller version is available",
+    },
+    error: { title: "Error" },
+    common: { ok: "OK", cancel: "Cancel", close: "Close" },
+  },
+} as const;
+
+export type TKey = keyof (typeof dict)["zh-CN"] extends string
+  ? keyof (typeof dict)["zh-CN"]
+  : never;
+
+type Nested = Record<string, unknown>;
+
+function lookup(obj: Nested, path: string): string {
+  let cur: unknown = obj;
+  for (const part of path.split(".")) {
+    if (cur && typeof cur === "object" && part in (cur as Nested)) {
+      cur = (cur as Nested)[part];
+    } else return path;
+  }
+  return typeof cur === "string" ? cur : path;
+}
+
+const Ctx = createContext<{ lang: Lang; setLang: (l: Lang) => void; t: (k: string) => string } | null>(null);
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [lang, setLang] = useState<Lang>("zh-CN");
+  const value = useMemo(
+    () => ({
+      lang,
+      setLang,
+      t: (k: string) => lookup(dict[lang] as unknown as Nested, k),
+    }),
+    [lang]
+  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function useI18n() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("useI18n outside provider");
+  return ctx;
+}

@@ -1,0 +1,41 @@
+{
+  "name": "cs2-bot-improver-controller",
+  "version": "1.0.0",
+  "description": "CS2 Bot Improver 控制器 — 一键安装插件整合包并管理 CS2 机器人模式",
+  "author": "CS2-Bot-Improver-Controller",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vectrol/CS2-Bot-Improver-Controller"
+  },
+  "private": true,
+  "main": "out/main/index.js",
+  "scripts": {
+    "prepare": "node scripts/prepare.mjs",
+    "postinstall": "node scripts/prepare.mjs",
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run prepare && vite build && tsc -p tsconfig.main.json",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "dist": "npm run build && electron-builder --win",
+    "test": "node scripts/test-controls.cjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.469.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true,
+    "esbuild@0.25.12": true
+  }
+}
