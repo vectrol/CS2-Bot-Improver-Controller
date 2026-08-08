@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { execFile } from "node:child_process";
-import { copyFileSync, existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
   BotItemsState,
@@ -30,15 +30,31 @@ const REQUIRED: string[] = [
   "overrides/Medium/botprofile.vpk",
 ];
 
-export function isCs2Running(): boolean {
+const CS2_CACHE_MS = 3000;
+let cs2Cache = { at: 0, running: false };
+
+export function isCs2Running(force = false): boolean {
+  const now = Date.now();
+  if (!force && now - cs2Cache.at < CS2_CACHE_MS) return cs2Cache.running;
+  let running = false;
   try {
     const out = execFileSync("tasklist.exe", ["/FI", "IMAGENAME eq cs2.exe"], {
       encoding: "utf8",
       windowsHide: true,
     });
-    return out.includes("cs2.exe");
+    running = out.includes("cs2.exe");
   } catch {
-    return false;
+    running = false;
+  }
+  cs2Cache = { at: now, running };
+  return running;
+}
+
+function fileSize(p: string): number {
+  try {
+    return statSync(p).size;
+  } catch {
+    return -1;
   }
 }
 
@@ -102,24 +118,25 @@ export function setMode(csgo: string, mode: GameMode): ModeInfo {
 
 export function getDifficulty(csgo: string): DifficultyInfo {
   const available = (["Low", "Medium", "High"] as DifficultyLevel[]).filter((l) =>
-    existsSync(join(csgo, "overrides", l, "botprofile.vpk"))
+    fileSize(join(csgo, "overrides", l, "botprofile.vpk")) >= 0
   );
   const active = join(csgo, "overrides", "botprofile.vpk");
+  const activeSize = fileSize(active);
   let current: DifficultyLevel | null = null;
-  if (existsSync(active)) {
-    const activeSize = readFileSync(active).length;
+  if (activeSize >= 0) {
     for (const l of available) {
-      try {
-        if (readFileSync(join(csgo, "overrides", l, "botprofile.vpk")).length === activeSize) {
-          current = l;
-          break;
-        }
-      } catch {
-        /* skip */
+      if (fileSize(join(csgo, "overrides", l, "botprofile.vpk")) === activeSize) {
+        current = l;
+        break;
       }
     }
   }
-  return { current, available, activePresent: existsSync(active), cs2Running: isCs2Running() };
+  return {
+    current,
+    available,
+    activePresent: activeSize >= 0,
+    cs2Running: isCs2Running(),
+  };
 }
 
 export function setDifficulty(csgo: string, level: DifficultyLevel): DifficultyInfo {

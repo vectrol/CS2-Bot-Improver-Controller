@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { join } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
 import { getConfig, saveConfig } from "./config";
 import { detectDirectories, selectDirectory } from "./cs2dir";
 import {
@@ -252,6 +253,44 @@ function registerIpc(): void {
   ipcMain.handle("cs2:running", () => isCs2Running());
   ipcMain.handle("cs2:launch", async () => launchCs2());
   ipcMain.handle("cs2:reconcile", async () => reconcileLaunchOptions());
+
+  ipcMain.handle("launch:options", async () => {
+    const { options, insecure } = await getLaunchOptions(true);
+    return { options, insecure };
+  });
+  ipcMain.handle("launch:options:set", async (_e, custom: string) => {
+    saveConfig({ launchOptions: custom.trim() });
+    await setLaunchOptions(getConfig().mode === "bots");
+    return getLaunchOptions(true);
+  });
+
+  ipcMain.handle("data:export", async (_e, payload: string) => {
+    const file = dialog.showSaveDialogSync(win!, {
+      title: "Export settings",
+      defaultPath: "cbic-config.json",
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (!file) return false;
+    try {
+      writeFileSync(file, payload, "utf-8");
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  ipcMain.handle("data:import", async () => {
+    const file = dialog.showOpenDialogSync(win!, {
+      title: "Import settings",
+      filters: [{ name: "JSON", extensions: ["json"] }],
+      properties: ["openFile"],
+    });
+    if (!file || file.length === 0) return null;
+    try {
+      return readFileSync(file[0], "utf-8");
+    } catch {
+      return null;
+    }
+  });
 
   ipcMain.handle("commands:load", () => loadCommandBlocks());
 }

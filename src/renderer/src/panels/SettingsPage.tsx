@@ -14,9 +14,13 @@ import {
   Trash2,
   RefreshCw,
   Download,
+  Upload,
+  Terminal,
+  Database,
 } from "lucide-react";
 import { useI18n, type Lang } from "../i18n";
 import { useStore } from "../state/store";
+import { ACCENT_PRESETS, isValidHex } from "../lib/theme";
 
 const KNIFE_SUBCLASSES: Record<number, string> = {
   500: "Bayonet",
@@ -61,11 +65,35 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
   const { config, botItems, presets, dropKnives, cs2Running, updateInfo, controllerUpdate } = store;
   const [capturing, setCapturing] = useState(false);
   const keyInputRef = useRef<HTMLButtonElement>(null);
-  const [controllerVersion, setControllerVersion] = useState("1.0.0");
+  const [controllerVersion, setControllerVersion] = useState("1.1.0");
+  const [launchInput, setLaunchInput] = useState("");
+  const [launchOptions, setLaunchOptions] = useState("");
+  const [launchSaving, setLaunchSaving] = useState(false);
 
   useEffect(() => {
     window.controller.version().then((v) => setControllerVersion(v.controller));
   }, []);
+
+  useEffect(() => {
+    if (config?.launchOptions != null && launchInput === "") {
+      setLaunchInput(config.launchOptions);
+    }
+    window.controller.launchOptionsGet().then((r) => setLaunchOptions(r.options));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config?.launchOptions]);
+
+  const saveLaunchOptions = useCallback(async () => {
+    setLaunchSaving(true);
+    try {
+      const r = await window.controller.launchOptionsSet(launchInput);
+      setLaunchOptions(r.options);
+      store.showToast(`✓ ${t("launch.saved")}`);
+    } catch (e) {
+      store.reportError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLaunchSaving(false);
+    }
+  }, [launchInput, store, t]);
 
   useEffect(() => {
     if (!config?.language) return;
@@ -349,6 +377,110 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
                 {t("update.controller")} v{controllerUpdate.latest}
               </button>
             )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card__title" style={{ marginBottom: 8 }}>
+            <div className="card__icon">
+              <Palette size={14} />
+            </div>
+            {t("appearance.title")}
+          </div>
+          <div className="hint" style={{ marginBottom: 10 }}>{t("appearance.desc")}</div>
+          <div className="row" style={{ marginBottom: 10, flexWrap: "wrap" }}>
+            <span className="hint">{t("appearance.accent")}</span>
+            {ACCENT_PRESETS.map((p) => (
+              <button
+                key={p.value}
+                className={`swatch ${config?.appearance?.accent === p.value ? "swatch--on" : ""}`}
+                style={{ background: p.value }}
+                title={`${p.name} · ${lang === "zh-CN" ? p.zh : p.en}`}
+                onClick={() => store.updateConfig({ appearance: { ...config!.appearance, accent: p.value } })}
+              />
+            ))}
+            <label className="swatch swatch--custom" title={t("appearance.custom")}>
+              <input
+                type="color"
+                value={isValidHex(config?.appearance?.accent ?? "#f2a33c") ? config!.appearance.accent : "#f2a33c"}
+                onChange={(e) =>
+                  store.updateConfig({ appearance: { ...config!.appearance, accent: e.target.value } })
+                }
+              />
+              <Palette size={13} />
+            </label>
+          </div>
+          <div className="setting-row">
+            <div className="setting-row__info">
+              <div className="setting-row__title">{t("appearance.compact")}</div>
+              <div className="setting-row__desc">{t("appearance.compactDesc")}</div>
+            </div>
+            <button
+              className={`toggle ${config?.appearance?.compact ? "toggle--on" : ""}`}
+              onClick={() =>
+                store.updateConfig({
+                  appearance: { ...config!.appearance, compact: !config?.appearance?.compact },
+                })
+              }
+            />
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card__title" style={{ marginBottom: 8 }}>
+            <div className="card__icon">
+              <Terminal size={14} />
+            </div>
+            {t("launch.title")}
+          </div>
+          <div className="hint" style={{ marginBottom: 10 }}>{t("launch.desc")}</div>
+          <div className="row">
+            <input
+              className="text-input"
+              style={{ flex: 1 }}
+              value={launchInput}
+              onChange={(e) => setLaunchInput(e.target.value)}
+              placeholder={t("launch.placeholder")}
+              spellCheck={false}
+            />
+            <button className="btn btn--primary btn--sm" onClick={saveLaunchOptions} disabled={launchSaving}>
+              {t("launch.save")}
+            </button>
+          </div>
+          {launchOptions && (
+            <div className="hint" style={{ marginTop: 10 }}>
+              {t("launch.current")}: <span className="pill" style={{ marginLeft: 4 }}>{launchOptions || "—"}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card__title" style={{ marginBottom: 8 }}>
+            <div className="card__icon">
+              <Database size={14} />
+            </div>
+            {t("data.title")}
+          </div>
+          <div className="hint" style={{ marginBottom: 10 }}>{t("data.desc")}</div>
+          <div className="row">
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={async () => {
+                if (await store.exportData()) store.showToast(`✓ ${t("data.exported")}`);
+              }}
+            >
+              <Download size={13} />
+              {t("data.export")}
+            </button>
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={async () => {
+                if (await store.importData()) store.showToast(`✓ ${t("data.imported")}`);
+              }}
+            >
+              <Upload size={13} />
+              {t("data.import")}
+            </button>
           </div>
         </div>
 

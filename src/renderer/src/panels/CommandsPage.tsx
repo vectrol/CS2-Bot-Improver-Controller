@@ -8,12 +8,24 @@ import {
   Star,
   X,
   LayoutGrid,
+  Plus,
+  Pencil,
+  Trash2,
+  Save,
 } from "lucide-react";
 import { useI18n, type Lang } from "../i18n";
+import { useStore } from "../state/store";
 import type { CommandBlock } from "../../../shared/types";
 import { SECTION_META, sectionLabel, descFor } from "../data/commands";
 
 const FAV_KEY = "cbic.favs";
+const CUSTOM_KEY = "cbic.customBlocks";
+
+export type CustomBlock = {
+  id: string;
+  title: string;
+  commands: string[];
+};
 
 function loadFavs(): string[] {
   try {
@@ -21,6 +33,25 @@ function loadFavs(): string[] {
     return Array.isArray(raw) ? raw.filter((x) => typeof x === "string") : [];
   } catch {
     return [];
+  }
+}
+
+function loadCustom(): CustomBlock[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]");
+    return Array.isArray(raw)
+      ? raw.filter((x) => x && typeof x === "object" && Array.isArray(x.commands))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistCustom(blocks: CustomBlock[]): void {
+  try {
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify(blocks));
+  } catch {
+    /* ignore */
   }
 }
 
@@ -46,11 +77,16 @@ function Highlight({ text, query }: { text: string; query: string }) {
 
 export default function CommandsPage({ onBack }: { onBack: () => void }) {
   const { t, lang } = useI18n();
+  const store = useStore();
   const [blocks, setBlocks] = useState<CommandBlock[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("all");
   const [copied, setCopied] = useState<string | null>(null);
   const [favs, setFavs] = useState<string[]>(loadFavs);
+  const [custom, setCustom] = useState<CustomBlock[]>(loadCustom);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editText, setEditText] = useState("");
 
   useEffect(() => {
     window.controller.commandsLoad().then(setBlocks).catch(() => setBlocks([]));
@@ -76,6 +112,39 @@ export default function CommandsPage({ onBack }: { onBack: () => void }) {
     });
   };
 
+  const startEdit = (b: CustomBlock) => {
+    setEditing(b.id);
+    setEditTitle(b.title);
+    setEditText(b.commands.join("\n"));
+  };
+
+  const saveEdit = () => {
+    const title = editTitle.trim() || t("customBlocks.newTitle");
+    const commands = editText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (commands.length === 0) return;
+    setCustom((prev) => {
+      const next = editing
+        ? prev.map((b) => (b.id === editing ? { ...b, title, commands } : b))
+        : [...prev, { id: `c${Date.now()}`, title, commands }];
+      persistCustom(next);
+      return next;
+    });
+    setEditing(null);
+    store.showToast(`✓ ${t("customBlocks.saved")}`);
+  };
+
+  const deleteCustom = (id: string) => {
+    setCustom((prev) => {
+      const next = prev.filter((b) => b.id !== id);
+      persistCustom(next);
+      return next;
+    });
+    if (editing === id) setEditing(null);
+  };
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const out = blocks.filter((b) => {
@@ -87,6 +156,14 @@ export default function CommandsPage({ onBack }: { onBack: () => void }) {
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocks, query, filter, favs]);
+
+  const filteredCustom = useMemo(() => {
+    if (filter !== "all" && filter !== "custom") return [];
+    const q = query.trim().toLowerCase();
+    return custom.filter(
+      (b) => !q || `${b.title} ${b.commands.join(" ")}`.toLowerCase().includes(q)
+    );
+  }, [custom, query, filter]);
 
   const totalLines = useMemo(
     () => blocks.reduce((n, b) => n + b.commands.length, 0),
@@ -149,12 +226,136 @@ export default function CommandsPage({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="chip-row" style={{ margin: "10px 0 4px" }}>
-        {chip("all", t("commands.all"), <LayoutGrid size={12} />, blocks.length)}
+        {chip("all", t("commands.all"), <LayoutGrid size={12} />, blocks.length + custom.length)}
         {chip("fav", t("commands.fav"), <Star size={12} />, favs.length)}
+        {chip("custom", t("customBlocks.name"), <Pencil size={12} />, custom.length)}
         {sections.map((s) =>
           chip(s, sectionLabel(SECTION_META[s], s, lang), null, undefined)
         )}
+        <button
+          className="chip chip--add"
+          onClick={() => {
+            setFilter("custom");
+            setEditing("__new__");
+            setEditTitle("");
+            setEditText("");
+          }}
+        >
+          <Plus size={12} />
+          {t("customBlocks.add")}
+        </button>
       </div>
+
+      {filteredCustom.length === 0 && filter === "custom" && custom.length === 0 && (
+        <div className="empty">
+          <Pencil size={28} />
+          {t("customBlocks.empty")}
+        </div>
+      )}
+
+      {filter === "custom" && (
+        <>
+          {editing === "__new__" && (
+            <div className="card cmd-block custom-edit fade-in">
+              <input
+                className="text-input"
+                style={{ width: "100%" }}
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder={t("customBlocks.titlePlaceholder")}
+              />
+              <textarea
+                className="text-input custom-edit__area"
+                rows={3}
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                placeholder={t("customBlocks.commandsPlaceholder")}
+                spellCheck={false}
+              />
+              <div className="row">
+                <button className="btn btn--primary btn--sm" onClick={saveEdit}>
+                  <Save size={13} />
+                  {t("customBlocks.save")}
+                </button>
+                <button className="btn btn--ghost btn--sm" onClick={() => setEditing(null)}>
+                  {t("titlebar.back")}
+                </button>
+              </div>
+            </div>
+          )}
+          {filteredCustom.map((b) => (
+            <div key={b.id} className="card cmd-block">
+              {editing === b.id ? (
+                <div className="stack">
+                  <input
+                    className="text-input"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder={t("customBlocks.titlePlaceholder")}
+                  />
+                  <textarea
+                    className="text-input custom-edit__area"
+                    rows={3}
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    placeholder={t("customBlocks.commandsPlaceholder")}
+                    spellCheck={false}
+                  />
+                  <div className="row">
+                    <button className="btn btn--primary btn--sm" onClick={saveEdit}>
+                      <Save size={13} />
+                      {t("customBlocks.save")}
+                    </button>
+                    <button className="btn btn--ghost btn--sm" onClick={() => setEditing(null)}>
+                      {t("titlebar.back")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="cmd-block__head">
+                    <span className="cmd-block__sec-icon">
+                      <Pencil size={13} />
+                    </span>
+                    <div className="cmd-block__title">
+                      {b.title}
+                      <div className="cmd-block__desc">
+                        <Highlight text={t("customBlocks.name")} query={query} />
+                      </div>
+                    </div>
+                    <button className="star-btn" onClick={() => startEdit(b)}>
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      className="star-btn"
+                      style={{ color: "var(--red)" }}
+                      onClick={() => deleteCustom(b.id)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    <button
+                      className="cmd-block__copy"
+                      onClick={() => copy(b.commands.join("\n"), `custom:${b.id}`)}
+                    >
+                      {copied === `custom:${b.id}` ? <Check size={12} /> : <Copy size={12} />}
+                      {copied === `custom:${b.id}` ? t("commands.copied") : t("commands.copy")}
+                    </button>
+                  </div>
+                  {b.commands.map((c, j) => (
+                    <div
+                      key={j}
+                      className="cmd-block__line"
+                      onClick={() => copy(c, `custom:${b.id}:${j}`)}
+                    >
+                      <Highlight text={c} query={query} />
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          ))}
+        </>
+      )}
 
       {filtered.length === 0 && (
         <div className="empty">

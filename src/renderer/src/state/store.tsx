@@ -5,7 +5,9 @@ import {
   useEffect,
   useRef,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import type {
   AppConfig,
@@ -49,6 +51,10 @@ declare global {
       cs2Running: () => Promise<boolean>;
       cs2Launch: () => Promise<any>;
       cs2Reconcile: () => Promise<void>;
+      launchOptionsGet: () => Promise<{ options: string; insecure: boolean }>;
+      launchOptionsSet: (custom: string) => Promise<{ options: string; insecure: boolean }>;
+      dataExport: (payload: string) => Promise<boolean>;
+      dataImport: () => Promise<string | null>;
       commandsLoad: () => Promise<any[]>;
       windowMinimize: () => void;
       windowMaximize: () => void;
@@ -98,6 +104,8 @@ type Store = {
   setNades: (v: string) => Promise<void>;
   setKnives: (bind: string, sel: number[]) => Promise<void>;
   uninstall: () => Promise<{ ok: boolean; removed: number } | null>;
+  exportData: () => Promise<boolean>;
+  importData: () => Promise<boolean>;
   launch: () => Promise<{ launched: boolean; error?: string }>;
   toast: string | null;
   showToast: (msg: string) => void;
@@ -166,18 +174,36 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     toastTimer.current = window.setTimeout(() => setToast(null), 2200);
   }, []);
 
+  /** setState only when the value actually changed — avoids useless re-renders. */
+  const setIfChanged = useCallback(
+    (setter: Dispatch<SetStateAction<any>>, next: any) => {
+      setter((prev: any) => {
+        if (prev === next) return prev;
+        try {
+          return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+        } catch {
+          return next;
+        }
+      });
+    },
+    []
+  );
+
   const refresh = useCallback(async (silent = false) => {
     try {
-      const [dir, running] = await Promise.all([window.controller.detectDir(), window.controller.cs2Running()]);
-      setDirectory(dir);
-      setCs2Running(running);
+      const [dir, running] = await Promise.all([
+        window.controller.detectDir(),
+        window.controller.cs2Running(),
+      ]);
+      setIfChanged(setDirectory, dir);
+      setIfChanged(setCs2Running, running);
       if (!dir.valid || !dir.selected) {
-        setFiles(null);
-        setDifficultyS(null);
-        setModeS(null);
-        setBotItemsS(null);
-        setPresetsS(null);
-        setDropKnivesS(null);
+        setIfChanged(setFiles, null);
+        setIfChanged(setDifficultyS, null);
+        setIfChanged(setModeS, null);
+        setIfChanged(setBotItemsS, null);
+        setIfChanged(setPresetsS, null);
+        setIfChanged(setDropKnivesS, null);
         return;
       }
       const [f, d, m, b, p, k] = await Promise.all([
@@ -188,23 +214,23 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         window.controller.presetsGet(),
         window.controller.knivesGet(),
       ]);
-      setFiles(f);
-      setDifficultyS(d);
-      setModeS(m);
-      setBotItemsS(b);
-      setPresetsS(p);
-      setDropKnivesS(k);
+      setIfChanged(setFiles, f);
+      setIfChanged(setDifficultyS, d);
+      setIfChanged(setModeS, m);
+      setIfChanged(setBotItemsS, b);
+      setIfChanged(setPresetsS, p);
+      setIfChanged(setDropKnivesS, k);
     } catch {
       if (!silent) {
-        setFiles(null);
-        setDifficultyS(null);
-        setModeS(null);
-        setBotItemsS(null);
-        setPresetsS(null);
-        setDropKnivesS(null);
+        setIfChanged(setFiles, null);
+        setIfChanged(setDifficultyS, null);
+        setIfChanged(setModeS, null);
+        setIfChanged(setBotItemsS, null);
+        setIfChanged(setPresetsS, null);
+        setIfChanged(setDropKnivesS, null);
       }
     }
-  }, []);
+  }, [setIfChanged]);
 
   useEffect(() => {
     (async () => {
@@ -226,12 +252,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     let stopped = false;
     const tick = async () => {
       if (stopped) return;
+      if (document.visibilityState !== "visible") return;
       await refresh(true);
     };
-    const id = window.setInterval(tick, 2000);
+    const id = window.setInterval(tick, 3000);
+    const onFocus = () => refresh(true);
+    window.addEventListener("focus", onFocus);
     return () => {
       stopped = true;
       window.clearInterval(id);
+      window.removeEventListener("focus", onFocus);
     };
   }, [ready, refresh]);
 
@@ -325,6 +355,54 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
   }, [refresh, reportError]);
 
+  const exportData = useCallback(async () => {
+    try {
+      const payload = JSON.stringify(
+        {
+          app: "CBIC",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          config: config ? { ...config, windowBounds: undefined } : null,
+          favorites: JSON.parse(localStorage.getItem("cbic.favs") || "[]"),
+          customBlocks: JSON.parse(localStorage.getItem("cbic.customBlocks") || "[]"),
+        },
+        null,
+        2
+      );
+      return await window.controller.dataExport(payload);
+    } catch (e) {
+      reportError(e instanceof Error ? e.message : String(e));
+      return false;
+    }
+  }, [config, reportError]);
+
+  const importData = useCallback(async () => {
+    try {
+      const raw = await window.controller.dataImport();
+      if (!raw) return false;
+      const data = JSON.parse(raw) as {
+        config?: Partial<AppConfig>;
+        favorites?: string[];
+        customBlocks?: unknown;
+      };
+      if (data.config) {
+        const { windowBounds: _skip, ...rest } = data.config;
+        await updateConfig(rest);
+      }
+      if (data.favorites) {
+        localStorage.setItem("cbic.favs", JSON.stringify(data.favorites));
+      }
+      if (data.customBlocks) {
+        localStorage.setItem("cbic.customBlocks", JSON.stringify(data.customBlocks));
+      }
+      await refresh();
+      return true;
+    } catch (e) {
+      reportError(e instanceof Error ? e.message : String(e));
+      return false;
+    }
+  }, [updateConfig, refresh, reportError]);
+
   const launch = useCallback(async () => {
     try {
       return await window.controller.cs2Launch();
@@ -366,6 +444,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setNades,
     setKnives,
     uninstall,
+    exportData,
+    importData,
     launch,
     toast,
     showToast,

@@ -1,5 +1,14 @@
 import { app } from "electron";
-import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, readdirSync, rmdirSync } from "node:fs";
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  readdirSync,
+  rmdirSync,
+  statSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import yauzl from "yauzl";
 import type { InstallEvent, InstallResult, UninstallResult } from "../shared/types";
@@ -40,11 +49,29 @@ function entriesOf(zipPath: string): Promise<string[]> {
   });
 }
 
+let entriesCache: { path: string; mtimeMs: number; names: string[] } | null = null;
+
+/** Cached zip listing — invalidated by file mtime (avoids re-reading the 67MB index on every poll). */
+function cachedEntries(zipPath: string): Promise<string[]> {
+  try {
+    const st = statSync(zipPath);
+    if (entriesCache && entriesCache.path === zipPath && entriesCache.mtimeMs === st.mtimeMs) {
+      return Promise.resolve(entriesCache.names);
+    }
+    return entriesOf(zipPath).then((names) => {
+      entriesCache = { path: zipPath, mtimeMs: st.mtimeMs, names };
+      return names;
+    });
+  } catch {
+    return Promise.resolve([]);
+  }
+}
+
 /** Files in the bundled zip that are missing from the target dir (drift). */
 export async function driftFiles(csgo: string): Promise<string[]> {
   const zipPath = bundledZipPath();
   if (!existsSync(zipPath)) return [];
-  const names = await entriesOf(zipPath).catch(() => [] as string[]);
+  const names = await cachedEntries(zipPath);
   const missing: string[] = [];
   for (const n of names) {
     if (/\/$/.test(n) || EXCLUDED.test(n.split("/").pop() ?? n)) continue;
@@ -85,7 +112,7 @@ export async function installPackage(
     return { ok: false, filesWritten: 0, message: "bundled package missing" };
   }
 
-  const names = await entriesOf(zipPath).catch(() => [] as string[]);
+  const names = await cachedEntries(zipPath);
   const files = names.filter(
     (n) => !/\/$/.test(n) && !EXCLUDED.test(n.split("/").pop() ?? n)
   );
@@ -161,9 +188,7 @@ function extractAll(
 /** Remove every file the bundle installed (restores the game to a clean state). */
 export async function uninstallPackage(csgo: string): Promise<UninstallResult> {
   const zipPath = bundledZipPath();
-  const names = existsSync(zipPath)
-    ? await entriesOf(zipPath).catch(() => [] as string[])
-    : [];
+  const names = existsSync(zipPath) ? await cachedEntries(zipPath) : [];
   const installed = names.filter((n) => !/\/$/.test(n) && !EXCLUDED.test(n.split("/").pop() ?? n));
 
   let removed = 0;

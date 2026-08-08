@@ -10,6 +10,11 @@ export type AimValue = "head" | "mixed" | "body";
 
 export type NadesValue = "max" | "more" | "normal" | "less" | "off";
 
+export type AppearanceConfig = {
+  accent: string;
+  compact: boolean;
+};
+
 export type AppConfig = {
   language: string;
   csgoPath: string | null;
@@ -21,6 +26,8 @@ export type AppConfig = {
   botProfiles: boolean;
   dropKnifeBind: string;
   dropKnifeSubclasses: number[];
+  launchOptions: string;
+  appearance: AppearanceConfig;
   windowBounds?: { x?: number; y?: number; width?: number; height?: number };
 };
 

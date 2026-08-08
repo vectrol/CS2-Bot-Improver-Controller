@@ -17,6 +17,8 @@ const DEFAULTS: AppConfig = {
     500, 503, 505, 506, 507, 508, 509, 512, 514, 515, 516, 517, 518, 519, 520,
     521, 522, 523, 525, 526,
   ],
+  launchOptions: "",
+  appearance: { accent: "#f2a33c", compact: false },
 };
 
 let cache: AppConfig | null = null;

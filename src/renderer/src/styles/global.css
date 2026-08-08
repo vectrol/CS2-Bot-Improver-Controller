@@ -584,6 +584,23 @@ input {
   color: var(--text-faint);
 }
 
+.chip--add {
+  border-style: dashed;
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: rgba(242, 163, 60, 0.06);
+}
+.chip--add:hover {
+  background: rgba(242, 163, 60, 0.14);
+}
+
+.custom-edit__area {
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.6;
+  width: 100%;
+}
+
 /* ---------- command blocks ---------- */
 .cmd-section {
   font-size: 11px;
@@ -1048,6 +1065,94 @@ mark {
   line-height: 1.55;
   word-break: break-all;
   user-select: text;
+}
+
+/* ---------- swatches & inputs ---------- */
+.swatch {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.16s var(--ease-spring), box-shadow 0.18s var(--ease);
+  flex-shrink: 0;
+}
+.swatch:hover {
+  transform: scale(1.12);
+}
+.swatch--on {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(255, 255, 255, 0.35);
+}
+.swatch--custom {
+  display: grid;
+  place-items: center;
+  background: var(--panel-strong);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-dim);
+  overflow: hidden;
+}
+.swatch--custom input[type="color"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.text-input {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text);
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+.text-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* ---------- compact mode ---------- */
+body.compact .titlebar {
+  height: 36px;
+  padding-left: 12px;
+}
+body.compact .page {
+  padding: 12px 16px 20px;
+}
+body.compact .card {
+  padding: 11px;
+  border-radius: 11px;
+}
+body.compact .card__title {
+  font-size: 12.5px;
+}
+body.compact .install-hero {
+  padding: 13px;
+}
+body.compact .statusbar {
+  padding: 7px 12px;
+}
+body.compact .segmented__item {
+  padding: 6px 8px;
+  font-size: 11.5px;
+}
+body.compact .btn {
+  padding: 8px 14px;
+  font-size: 12px;
+}
+body.compact .cmd-block {
+  padding: 9px 11px;
+}
+body.compact .grid {
+  gap: 10px;
+}
+body.compact .stack {
+  gap: 10px;
 }
 
 /* ---------- misc ---------- */

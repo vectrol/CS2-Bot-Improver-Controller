@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "./i18n";
 import { useStore } from "./state/store";
+import { applyTheme } from "./lib/theme";
 import HomePage from "./panels/HomePage";
 import CommandsPage from "./panels/CommandsPage";
 import SettingsPage from "./panels/SettingsPage";
@@ -27,6 +28,13 @@ export default function App() {
       setLang(config.language);
     }
   }, [config?.language, setLang]);
+
+  useEffect(() => {
+    applyTheme(
+      config?.appearance?.accent ?? "#f2a33c",
+      config?.appearance?.compact ?? false
+    );
+  }, [config?.appearance?.accent, config?.appearance?.compact]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
